@@ -54,16 +54,21 @@ function scheduleClose() {
   closeTimer = setTimeout(closeMenu, 350);
 }
 
-menuWrap.addEventListener("mouseenter", openMenu);
-menuWrap.addEventListener("mouseleave", scheduleClose);
-menuBtn.addEventListener("click", () => {
-  menuWrap.classList.contains("is-open") ? closeMenu() : openMenu();
-});
-// al elegir una sección, cerramos el menú de inmediato en vez de
-// esperar a que el ratón lo abandone
-document.querySelectorAll(".nav-menu a").forEach((link) => {
-  link.addEventListener("click", closeMenu);
-});
+// las páginas internas (Portfolio, Sobre mí, Contacto) no llevan
+// menú hamburguesa, solo logo + flecha de vuelta, así que este
+// bloque se salta entero si no encuentra los elementos
+if (menuWrap && menuBtn) {
+  menuWrap.addEventListener("mouseenter", openMenu);
+  menuWrap.addEventListener("mouseleave", scheduleClose);
+  menuBtn.addEventListener("click", () => {
+    menuWrap.classList.contains("is-open") ? closeMenu() : openMenu();
+  });
+  // al elegir una sección, cerramos el menú de inmediato en vez de
+  // esperar a que el ratón lo abandone
+  document.querySelectorAll(".nav-menu a").forEach((link) => {
+    link.addEventListener("click", closeMenu);
+  });
+}
 
 /* =========================================================
    ESCENARIO DE FÍSICA (Matter.js)
@@ -194,4 +199,8 @@ function setupLogoPhysics() {
   renderPieces();
 }
 
-waitForMatter(setupLogoPhysics);
+// solo tiene sentido esperar a Matter.js (y solo la home carga su
+// script) si esta página realmente tiene el escenario de física
+if (document.getElementById("stage")) {
+  waitForMatter(setupLogoPhysics);
+}

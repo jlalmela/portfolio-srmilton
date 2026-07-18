@@ -34,10 +34,18 @@ a:hover {
   z-index: 20;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 40px 48px 64px;
+  /* flex-start (no center): con "center" la hamburguesa -mucho más
+     baja que el logo- quedaba centrada respecto a la altura del logo,
+     empezando más abajo que él. Con flex-start ambos arrancan a la
+     misma altura, la misma distancia desde arriba que desde la
+     izquierda. */
+  align-items: flex-start;
+  /* sin max-width + margin:auto: ese combo centraba la cabecera en un
+     contenedor de 1200px, y en pantallas más anchas eso sumaba un
+     margen extra enorme por fuera del padding, haciendo que el hueco
+     lateral real fuera mucho mayor que el superior. Quitándolo, los
+     40px de padding son el único espacio, igual a los de arriba. */
+  padding: 40px 40px 64px;
 }
 
 .menu-wrap {
@@ -146,13 +154,40 @@ a:hover {
 }
 
 /* =========================================================
+   CABECERA DE PÁGINAS INTERNAS (Portfolio, Sobre mí, Contacto):
+   solo el logo (sin menú hamburguesa) y, en el lado opuesto, una
+   flecha + el nombre de la página que vuelve al inicio.
+   ========================================================= */
+.page-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: "Source Serif 4", "Georgia", serif;
+  font-size: clamp(1.6rem, 3.4vw, 2.1rem);
+  color: #792528;
+}
+
+.page-back .back-arrow {
+  display: inline-block;
+  transition: transform 0.25s ease;
+}
+
+.page-back:hover .back-arrow {
+  transform: translateX(-6px);
+}
+
+.page-back:hover {
+  color: #c98f91;
+}
+
+/* =========================================================
    ESCENARIO DE FÍSICA: las piezas del logo caen con gravedad
    (Matter.js) y se pueden arrastrar con el ratón/dedo
    ========================================================= */
 .stage-section {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 48px 24px;
+  /* mismo motivo que .site-header: sin max-width + margin:auto, para
+     que quede alineada a los mismos 40px laterales de la cabecera */
+  padding: 0 40px 24px;
 }
 
 .stage {
@@ -203,6 +238,7 @@ a:hover {
 
 @media (max-width: 600px) {
   .site-header {
+    /* en móvil se mantiene la misma proporción (arriba = izquierda = derecha) */
     padding: 24px 24px 40px;
   }
   .stage-section {
@@ -213,5 +249,20 @@ a:hover {
   }
   .content-section {
     padding: 56px 24px;
+  }
+
+  /* el logo y las letras del menú/flecha se quedaban siempre en su
+     tamaño mínimo del clamp() en pantallas de móvil (el ancho del
+     viewport es demasiado pequeño para que el término en vw llegue
+     a superarlo), así que aquí se baja ese mínimo para que se vean
+     algo más pequeños y proporcionados al tamaño de la pantalla */
+  .logo-wrap {
+    --s: clamp(46px, 14vw, 90px);
+  }
+  .nav-menu a {
+    font-size: clamp(1.3rem, 6vw, 1.8rem);
+  }
+  .page-back {
+    font-size: clamp(1.25rem, 5.5vw, 1.7rem);
   }
 }
