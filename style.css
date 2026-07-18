@@ -25,13 +25,14 @@ a:hover {
    o al pulsar en móvil/táctil) + logo circular con crossfade
    ========================================================= */
 .site-header {
-  /* posicionada + con z-index propio: sin esto, el menú desplegable
-     y el "stage" de la física de abajo compiten por el mismo nivel
-     de apilamiento y, al venir el stage después en el HTML, ganaba
-     él y tapaba los clics sobre "Contacto" (el enlace que más se
-     adentra en esa zona de solape) */
-  position: relative;
-  z-index: 20;
+  /* fija: el logo y la hamburguesa deben verse todo el tiempo en
+     pantalla mientras se hace scroll por la escena del paisaje, no
+     solo al principio de la página */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
   display: flex;
   justify-content: space-between;
   /* flex-start (no center): con "center" la hamburguesa -mucho más
@@ -117,8 +118,8 @@ a:hover {
 }
 
 .logo-wrap {
-  /* 25% más pequeño que el original (clamp(80px, 22vw, 165px)) */
-  --s: clamp(60px, 16.5vw, 123.75px);
+  /* otro 25% más pequeño respecto al tamaño anterior (clamp(60px, 16.5vw, 123.75px)) */
+  --s: clamp(45px, 12.4vw, 92.8px);
   position: relative;
   width: var(--s);
   height: var(--s);
@@ -181,46 +182,47 @@ a:hover {
 }
 
 /* =========================================================
-   ESCENARIO DE FÍSICA: las piezas del logo caen con gravedad
-   (Matter.js) y se pueden arrastrar con el ratón/dedo
+   ESCENA DEL PAISAJE: el SVG (paisaje.svg) incrustado como fondo
+   de la página, con sus 7 capas (sol, pájaros, nube, montañas,
+   suelo, sakura, torii) animadas por GSAP ScrollTrigger al hacer
+   scroll: la sección se fija (pin) un tramo mientras cada capa
+   aparece en cascada (fade + scale up) y, a la vez, se mueve a
+   distinta velocidad que el scroll (parallax) según su profundidad.
    ========================================================= */
-.stage-section {
-  /* mismo motivo que .site-header: sin max-width + margin:auto, para
-     que quede alineada a los mismos 40px laterales de la cabecera */
-  padding: 0 40px 24px;
-}
-
-.stage {
+.scene-section {
   position: relative;
   width: 100%;
-  height: 480px;
+  height: 100vh;
   overflow: hidden;
-  touch-action: none;
-  cursor: grab;
 }
 
-.stage:active {
-  cursor: grabbing;
-}
-
-.stage-piece {
+.scene-svg {
   position: absolute;
-  will-change: transform;
-  pointer-events: none; /* Matter.js Mouse ya escucha en .stage; el hijo no necesita capturar eventos */
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
-.stage-hint {
-  text-align: center;
-  font-size: 0.8rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: oklch(55% 0.02 80);
+.scene-svg svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* cada capa se anima solo con transform/opacity (nunca top/width,
+   para no provocar layout shifts); will-change avisa al navegador
+   para que reserve su propia capa de composición */
+.scene-svg svg [class^="layer-"] {
+  will-change: transform, opacity;
 }
 
 .content-section {
+  /* la cabecera ahora es "fixed" (para la escena del paisaje en la
+     portada) y ya no reserva espacio en el flujo normal; este margen
+     superior evita que tape el principio del texto en estas páginas */
   max-width: 800px;
   margin: 0 auto;
-  padding: 80px 48px;
+  padding: 200px 48px 80px;
 }
 
 .content-section h2 {
@@ -241,14 +243,8 @@ a:hover {
     /* en móvil se mantiene la misma proporción (arriba = izquierda = derecha) */
     padding: 24px 24px 40px;
   }
-  .stage-section {
-    padding: 0 24px 24px;
-  }
-  .stage {
-    height: 360px;
-  }
   .content-section {
-    padding: 56px 24px;
+    padding: 140px 24px 56px;
   }
 
   /* el logo y las letras del menú/flecha se quedaban siempre en su
@@ -257,7 +253,7 @@ a:hover {
      a superarlo), así que aquí se baja ese mínimo para que se vean
      algo más pequeños y proporcionados al tamaño de la pantalla */
   .logo-wrap {
-    --s: clamp(46px, 14vw, 90px);
+    --s: clamp(34.5px, 10.5vw, 67.5px);
   }
   .nav-menu a {
     font-size: clamp(1.3rem, 6vw, 1.8rem);

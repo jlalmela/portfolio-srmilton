@@ -54,15 +54,30 @@ function scheduleClose() {
   closeTimer = setTimeout(closeMenu, 350);
 }
 
+// Un click SIEMPRE va precedido de un hover con ratón real: el cursor
+// tiene que entrar en el botón antes de poder pulsarlo. Si dejamos el
+// hover Y el click activos a la vez en un dispositivo con ratón, el
+// mouseenter abre el menú y, medio segundo después, el propio click
+// lo detecta ya abierto y lo alterna, cerrándolo en el acto: parece
+// que el menú "no hace nada". Lo mismo pasa en táctil, donde el
+// navegador simula ese mismo mouseenter justo antes del click.
+// La solución es no mezclar los dos modelos: en dispositivos con
+// ratón real usamos solo hover (abrir/cerrar al entrar y salir); en
+// táctil, donde no existe el hover, usamos solo el click.
+const supportsHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
 // las páginas internas (Portfolio, Sobre mí, Contacto) no llevan
 // menú hamburguesa, solo logo + flecha de vuelta, así que este
 // bloque se salta entero si no encuentra los elementos
 if (menuWrap && menuBtn) {
-  menuWrap.addEventListener("mouseenter", openMenu);
-  menuWrap.addEventListener("mouseleave", scheduleClose);
-  menuBtn.addEventListener("click", () => {
-    menuWrap.classList.contains("is-open") ? closeMenu() : openMenu();
-  });
+  if (supportsHover) {
+    menuWrap.addEventListener("mouseenter", openMenu);
+    menuWrap.addEventListener("mouseleave", scheduleClose);
+  } else {
+    menuBtn.addEventListener("click", () => {
+      menuWrap.classList.contains("is-open") ? closeMenu() : openMenu();
+    });
+  }
   // al elegir una sección, cerramos el menú de inmediato en vez de
   // esperar a que el ratón lo abandone
   document.querySelectorAll(".nav-menu a").forEach((link) => {
@@ -71,136 +86,386 @@ if (menuWrap && menuBtn) {
 }
 
 /* =========================================================
-   ESCENARIO DE FÍSICA (Matter.js)
-   Las piezas del logo (las letras "Milton" y los dos trazos
-   del sombrero) caen con gravedad dentro del recuadro y se
-   pueden arrastrar con el ratón/dedo.
+   ESCENA DEL PAISAJE (paisaje.svg) animada con GSAP ScrollTrigger
+   El SVG está incrustado directamente en el HTML (no se carga con
+   fetch: los navegadores bloquean fetch() sobre archivos locales
+   file://, así que incrustarlo garantiza que funcione igual si la
+   página se abre con doble clic o servida por http).
 
-   El SVG se incrusta aquí como texto en lugar de cargarlo con
-   fetch("assets/logo-srmilton.svg"): los navegadores bloquean
-   fetch() sobre archivos locales (file://) por seguridad, así
-   que si esta página se abriera con doble clic en lugar de
-   servirla por http, la animación se quedaría vacía. Incrustando
-   el SVG no depende de esa petición y funciona en ambos casos.
+   Sus 7 grupos de piezas (sol, pájaros, nube, montañas, suelo,
+   sakura, torii) llevan cada uno una clase "layer-*" -algunos
+   repartidos en varios grupos, para no alterar el orden de dibujo
+   original del SVG- así que un mismo selector like ".layer-sol"
+   selecciona y anima a la vez todas las piezas de esa capa.
+
+   Comportamiento al hacer scroll:
+   1) la sección se fija en pantalla (pin) durante un tramo,
+   2) mientras tanto cada capa aparece en cascada (fade + scale up),
+   3) y, a la vez, cada capa se desplaza a una velocidad distinta
+      según su profundidad (parallax): las lejanas (sol, nube) casi
+      no se mueven, las cercanas (torii, sakura) se mueven más.
    ========================================================= */
-const LOGO_SVG_SOURCE = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 368 368"><defs><style>.cls-1{fill:#792528;}.cls-2{fill:#fff;}</style></defs><title>Recurso 2</title><g id="Capa_2" data-name="Capa 2"><g id="Capa_1-2" data-name="Capa 1"><circle class="cls-1" cx="184" cy="184" r="184"/><g id="Capa_2-2" data-name="Capa 2"><path class="cls-2" d="M208.08,115.29a8.48,8.48,0,0,0-1.52-4.79c-.92-1.27-2.44-1.86-4.54-1.94h-3.45v15h4.29C206.48,123.63,208.25,120.85,208.08,115.29Z"/><path class="cls-2" d="M290.26,190.4c-2.53-19.28-22.48-19-45.89-14.06,1.09-14.48,3.11-37.39,5-47.32,3.29-17,12.46-68,12.46-68h-.33c0-8.92-33.6-16.16-74.94-16.16s-74.94,7.24-74.94,16.16a2.82,2.82,0,0,0,.26,1.18c.17.37,9.26,50.1,12.54,66.77,1.94,9.93,4,32.84,5.05,47.32-23.4-4.89-43.36-5.22-45.88,14.06C81.78,204.8,94.16,226.86,187,226.86S292.11,204.8,290.26,190.4Zm-109-75.78a5.94,5.94,0,0,1,.51-2.19,9.18,9.18,0,0,1,4-4A15.44,15.44,0,0,1,193,107h12a10,10,0,0,1,6.48,2.19,8.05,8.05,0,0,1,2.78,6.65,11.24,11.24,0,0,1-1.43,5.64,9,9,0,0,1-4.05,3.71l8.26,13c4.88,7.32,9.09,11.28,12.62,12-3.45.26-5.89.34-7.32,0-3.12-.59-6.15-2.61-9.09-6.23a44.08,44.08,0,0,1-3.37-4.88q-1.51-2.53-4.8-7.58L201.51,126h-2.94v8.42a3.27,3.27,0,0,0,1.34,2.69,4.5,4.5,0,0,0,2.36,1.18v1.43h-14v-1.43a4.5,4.5,0,0,0,2.36-1.18,3.54,3.54,0,0,0,1.35-2.69V109.32a3.26,3.26,0,0,0-.25-.68.52.52,0,0,0-.59-.17,5,5,0,0,0-3.37,1.86,6.15,6.15,0,0,0-1.18,3.53,9.9,9.9,0,0,0,.59,3.54,3.39,3.39,0,0,0,1.68,2.19,7.41,7.41,0,0,1-3.7.42,4.13,4.13,0,0,1-2.36-1.09,3.91,3.91,0,0,1-1.35-1.94A5.71,5.71,0,0,1,181.22,114.62Zm-35.36,19.87.76-13.13a14.39,14.39,0,0,0,.92,2.27,20,20,0,0,0,1.27,2.69c.16.43.67,1.35,1.34,2.61a14.62,14.62,0,0,0,1.94,2.87l2.27,2.36a9,9,0,0,0,2.87,2.1c.92.42,2.1.76,3.36,1.18a17.55,17.55,0,0,0,4.21.42,7.75,7.75,0,0,0,6.4-3.7,8.69,8.69,0,0,0,1.1-7.58c-.4-1.52-1.74-3-4-4.3a86.52,86.52,0,0,0-8.42-4.29,53.69,53.69,0,0,1-7.5-3.87,16,16,0,0,1-5.3-5.65,9.59,9.59,0,0,1-1.43-6.31A11.7,11.7,0,0,1,148,96.35,12.85,12.85,0,0,1,154.19,92a27.81,27.81,0,0,1,9.94-1.68c7.75,0,13.3,1.68,16.84,5l-.59,10.27-2.11-3.2-3.28-4a18,18,0,0,0-5.05-4,12.52,12.52,0,0,0-5.89-1.51,7.52,7.52,0,0,0-5.14,2.1,6.52,6.52,0,0,0-2.36,4.89,7.7,7.7,0,0,0,2.78,5.81,19.87,19.87,0,0,0,6.4,3.87c2.36.93,5.05,2.1,8,3.45a29.58,29.58,0,0,1,6.82,4.21,10.72,10.72,0,0,1,3.37,5.56,12.11,12.11,0,0,1,0,6,15.86,15.86,0,0,1-2.36,5.13c-3.2,4.47-8.84,6.65-17,6.65a37.75,37.75,0,0,1-11.37-1.6A16.21,16.21,0,0,1,145.86,134.49Zm95.73,70.31s-23.07,2.61-32.5,1.93c-11.11-.75-21.22-6.4-31.57-10.44-6.23-2.35-21.64-10.44-21.64-10.44l86.81-2.78Z"/><path class="cls-2" d="M83.3,226.77H95.85l11.28,53.8L118,238.05h12.29v2.28a4.16,4.16,0,0,0-2.86,1.68,6.14,6.14,0,0,0-1.52,4.21v41.93a6,6,0,0,0,1.52,4.21c1.09,1.18,2,1.77,2.86,1.77v2.19H113.61v-2.19c.84,0,1.77-.59,2.86-1.77a6,6,0,0,0,1.52-4.21V256.83c-1.35,4.38-3.45,10.95-6.15,19.7s-4.8,15.41-6.14,19.79h-2l-6.4-19.87c-2.78-8.84-5-32.75-6.4-37.13v48.83a6,6,0,0,0,1.6,4.21,4.19,4.19,0,0,0,2.86,1.77v2.19h-12v-2.19c.84,0,1.77-.59,2.78-1.77a5.76,5.76,0,0,0,1.6-4.21V236.37a5.82,5.82,0,0,0-1.6-4.21,4.22,4.22,0,0,0-2.78-1.68Z"/><path class="cls-2" d="M134.41,244.12h16.67v2.27a4.19,4.19,0,0,0-2.86,1.77,6.46,6.46,0,0,0-1.6,4.38V288a6.37,6.37,0,0,0,1.6,4.3,4.19,4.19,0,0,0,2.86,1.77v2.27H134.41v-2.27c.84,0,1.77-.59,2.78-1.77a6.13,6.13,0,0,0,1.6-4.3V252.54a6.18,6.18,0,0,0-1.6-4.38c-1-1.18-1.94-1.77-2.78-1.77Z"/><path class="cls-2" d="M153.77,244.12h16.59v2.27c-.84,0-1.77.59-2.78,1.77a6.13,6.13,0,0,0-1.6,4.38v41.09h9.68a7.41,7.41,0,0,0,3-.68,6.29,6.29,0,0,0,2.52-2l1.77-2.27a14.53,14.53,0,0,0,1.43-2.7c.59-1.18.93-1.77.93-1.85l-.42,12.21H153.77v-2.27c.85,0,1.77-.59,2.78-1.77a6,6,0,0,0,1.6-4.3V252.54a6.13,6.13,0,0,0-1.6-4.38c-1-1.18-1.93-1.77-2.78-1.77Z"/><path class="cls-2" d="M178.53,244.12h35.19l.84,12.21a18.85,18.85,0,0,0-5-5.56c-2.45-2-6.91-3-9.52-3V288a6.09,6.09,0,0,0,1.6,4.3,4.19,4.19,0,0,0,2.86,1.77v2.27H187.87v-2.27a4.18,4.18,0,0,0,2.87-1.77,6.13,6.13,0,0,0,1.6-4.3V247.82h-2a12.09,12.09,0,0,0-7.57,3,17.69,17.69,0,0,0-5,5.39Z"/><path class="cls-2" d="M220.46,251.78c3.79-5.05,8.25-7.66,13.55-7.66s9.77,2.61,13.47,7.66a30.34,30.34,0,0,1,5.65,18.44c0,7.24-1.86,13.3-5.65,18.44s-8.16,7.66-13.47,7.66-9.76-2.53-13.55-7.66-5.64-11.29-5.64-18.44S216.67,256.83,220.46,251.78Zm20.71,1.51c-1.85-3.95-4.29-5.89-7.16-5.89s-5.3,1.94-7.15,5.89-2.87,9.6-2.87,16.93.93,12.88,2.87,16.92,4.21,6,7.15,6,5.31-2,7.16-6,2.78-9.68,2.78-16.92S243,257.25,241.17,253.29Z"/><path class="cls-2" d="M264.32,237.89l20,41.67V236.2a6,6,0,0,0-1.6-4.12c-1.1-1.1-2-1.69-2.86-1.69v-3.62h11.95v3.62a4.39,4.39,0,0,0-2.86,1.69,5.65,5.65,0,0,0-1.6,4.12v60.12H284l-23.49-40.5v32.5a5.83,5.83,0,0,0,1.51,4.13c1.1,1.09,2,1.68,2.86,1.68v2.19H253v-2.19c.84,0,1.77-.59,2.86-1.68a5.84,5.84,0,0,0,1.52-4.13V253.21c0-1.68-.42-10.36-1.43-11.45a4.31,4.31,0,0,0-2.86-1.68v-2.19Z"/></g></g></g></svg>
-`;
+const sceneSection = document.getElementById("scene-section");
 
-// color de las piezas al caer: el mismo tono granate del círculo del
-// logotipo nuevo, para que se vean sobre el fondo crema de la página
-// (las piezas del SVG original son blancas, pensadas para ir sobre el
-// círculo, no sobre el fondo de la web)
-const PIECE_FILL = "#792528";
+if (sceneSection && window.gsap && window.ScrollTrigger) {
+  gsap.registerPlugin(ScrollTrigger);
 
-function waitForMatter(cb) {
-  if (!window.Matter) {
-    setTimeout(() => waitForMatter(cb), 50);
-    return;
-  }
-  cb();
-}
+  // gsap.matchMedia() separa por completo el comportamiento en escritorio
+  // del de móvil: en escritorio se mantiene tal cual la composición y
+  // animación actuales (nada cambia); en móvil arrancamos desde cero una
+  // composición propia, pensada para un encuadre vertical, que iremos
+  // construyendo capa a capa según se vaya decidiendo qué piezas usar y
+  // cómo colocarlas -por eso el bloque mobile empieza vacío.
+  const mm = gsap.matchMedia();
 
-function setupLogoPhysics() {
-  const stage = document.getElementById("stage");
-  if (!stage) return;
+  mm.add("(min-width: 769px)", () => {
+  // profundidad de cada capa (0 = muy lejos, 1 = primer plano):
+  // determina cuánto se desplaza respecto al scroll (parallax)
+  const layers = [
+    { selector: ".layer-sol", depth: 0.15 },
+    { selector: ".layer-nube", depth: 0.2 },
+    { selector: ".layer-pajaros-1", depth: 0.28 },
+    { selector: ".layer-pajaros-2", depth: 0.32 },
+    { selector: ".layer-pajaros-3", depth: 0.36 },
+    { selector: ".layer-montanas", depth: 0.4 },
+    { selector: ".layer-suelo", depth: 0.55 },
+    { selector: ".layer-torii-tejado", depth: 0.7 },
+    { selector: ".layer-torii-cuerpo", depth: 0.7 },
+    { selector: ".layer-torii-base", depth: 0.7 },
+    { selector: ".layer-sakura-hojas", depth: 0.8 },
+    { selector: ".layer-sakura-ramas", depth: 0.8 },
+  ];
 
-  const width = stage.clientWidth;
-  const height = stage.clientHeight || 480;
+  // el rótulo "Sr Milton" no lleva parallax propio ni fundido: cae desde
+  // arriba igual que las piezas del torii (ver más abajo, dentro del
+  // bloque "TORII"), como una pieza más de la puerta.
+  const ROTULO_SELECTOR = ".layer-rotulo";
 
-  // Extrae del SVG las piezas que "caen": las dos formas del sombrero
-  // y las seis letras de "Milton". El círculo granate de fondo es un
-  // <circle>, no un <path>, así que querySelectorAll("path") ya lo
-  // deja fuera automáticamente sin necesidad de filtrar por id.
-  const doc = new DOMParser().parseFromString(LOGO_SVG_SOURCE, "image/svg+xml");
-  const paths = [...doc.querySelectorAll("path")];
+  // cada pájaro entra por separado, a su propia velocidad: distinto
+  // desplazamiento de entrada, distinto instante de arranque (dentro del
+  // mismo "hueco" de la cascada) y distinta duración -así no vuelan
+  // los tres a la vez, en bloque, sino cada uno a su aire-. Unos entran
+  // desde la izquierda y otros desde la derecha (entranceX negativo =
+  // izquierda, positivo = derecha), y cada uno lleva su propio aleteo
+  // -un pequeño vaivén vertical en forma de onda- mientras vuela, con
+  // su propia amplitud y número de ciclos para que no aleteen todos
+  // igual ni a la vez.
+  const birds = [
+    { selector: ".layer-pajaros-1", entranceX: -900, delay: 0, duration: 0.4, bobAmplitude: 45, bobCycles: 2 },
+    { selector: ".layer-pajaros-2", entranceX: 1100, delay: 0.05, duration: 0.3, bobAmplitude: 60, bobCycles: 3 },
+    { selector: ".layer-pajaros-3", entranceX: -1400, delay: 0.02, duration: 0.45, bobAmplitude: 55, bobCycles: 4 },
+  ];
 
-  // SVG oculto de solo medición, para leer el bounding box real de cada trazo
-  const measureSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  measureSvg.setAttribute("viewBox", "0 0 368 368");
-  measureSvg.style.cssText = "position:absolute;left:-9999px;width:368px;height:368px;";
-  document.body.appendChild(measureSvg);
+  // el torii son 3 piezas completas (cada una con su rojo y su negro
+  // juntos: tejado, cuerpo con los pilares, y la hierba de la base), no
+  // fragmentos sueltos por color. Caen una tras otra, pero de abajo
+  // arriba -primero la base, luego el cuerpo, y el tejado el último-
+  // cada una con más margen entre sí y más despacio que antes.
+  const toriiPieces = [
+    { selector: ".layer-torii-base", delay: 0, duration: 0.75 },
+    { selector: ".layer-torii-cuerpo", delay: 0.3, duration: 0.85 },
+    { selector: ".layer-torii-tejado", delay: 0.6, duration: 0.7 },
+  ];
 
-  const maxDim = 96;
-  const pieces = paths.map((p, i) => {
-    const clone = p.cloneNode(true);
-    measureSvg.appendChild(clone);
-    const bbox = clone.getBBox();
-    measureSvg.removeChild(clone);
-    const scale = maxDim / Math.max(bbox.width, bbox.height);
-    const w = Math.max(bbox.width * scale, 14);
-    const h = Math.max(bbox.height * scale, 14);
-    return { d: p.getAttribute("d"), bbox, w, h, index: i };
-  });
-  document.body.removeChild(measureSvg);
+  // orden narrativo de aparición (distinto del orden por profundidad):
+  // el sol sube justo después de que las montañas ya estén, y los
+  // pájaros cierran la cascada como detalle final. Las hojas de la
+  // sakura no llevan entrada propia aquí: arrancan a la vez que las
+  // ramas (ver más abajo). La nube tampoco lleva su propio hueco: entra
+  // en el mismo instante en que empieza a caer el tejado del torii (ver
+  // el bloque "TORII" más abajo), no en un punto fijo de la cascada.
+  const appearanceOrder = [
+    ".layer-montanas",
+    ".layer-sol",
+    ".layer-suelo",
+    "TORII", // marcador especial: las 3 piezas completas del torii (+ la nube y el rótulo, ver abajo)
+    ".layer-sakura-ramas",
+    "PAJAROS", // marcador especial: los tres pájaros, cada uno con su propia velocidad
+  ];
 
-  const { Engine, Composite, Bodies, Mouse, MouseConstraint, Runner, Events } = Matter;
+  const STEP = 0.12; // separación entre la aparición de una capa y la siguiente
+  const REVEAL_DURATION = 0.5;
+  const HOJAS_DURATION = REVEAL_DURATION * 1.8; // las hojas tardan más que las ramas -mismo inicio, final más tarde-
+  const sakuraRamasIndex = appearanceOrder.indexOf(".layer-sakura-ramas");
 
-  const engine = Engine.create();
-  engine.gravity.y = 0.7;
-  engine.positionIterations = 12;
-  engine.velocityIterations = 10;
+  const toriiIndex = appearanceOrder.indexOf("TORII");
+  const lastToriiPiece = toriiPieces[toriiPieces.length - 1];
+  const toriiEnd = toriiIndex * STEP + lastToriiPiece.delay + lastToriiPiece.duration;
 
-  const groundThickness = 200;
-  const centerY = height / 2;
+  const cascadeEnd = Math.max(
+    (appearanceOrder.length - 1) * STEP + REVEAL_DURATION,
+    sakuraRamasIndex * STEP + HOJAS_DURATION,
+    toriiEnd
+  );
+  const LAKE_DURATION = 0.7;
+  // el agua empieza a fluir un poco después de que comienzan a caer las
+  // piezas del torii (no en el instante exacto en que arranca la base),
+  // para que se perciba claramente que el desencadenante es la puerta
+  // cayendo y no una coincidencia con el arranque de la cascada.
+  const firstToriiPiece = toriiPieces[0];
+  const LAKE_DELAY_AFTER_TORII = 0.18;
+  const LAKE_START =
+    toriiIndex * STEP + firstToriiPiece.delay + LAKE_DELAY_AFTER_TORII;
+  // coordenadas del hueco del lago tal como quedaron incrustadas en el
+  // SVG (espacio interno 750x500, antes del escalado x4.1667 del canvas).
+  // Estos valores vienen del contorno que el propio usuario redibujó a
+  // mano (lago.svg), convertido a puntos y reescalado a este espacio.
+  const LAKE_Y = 245.27998037760156;
+  const LAKE_HEIGHT = 203.51998371840128;
 
-  const ground = Bodies.rectangle(width / 2, centerY + groundThickness / 2, width * 2, groundThickness, { isStatic: true });
-  const leftWall = Bodies.rectangle(-10, height / 2, 20, height * 2, { isStatic: true });
-  const rightWall = Bodies.rectangle(width + 10, height / 2, 20, height * 2, { isStatic: true });
-  Composite.add(engine.world, [ground, leftWall, rightWall]);
+  // la duración total del recorrido tiene que cubrir lo que tarde más:
+  // el resto de la cascada, o el propio llenado del lago (que ahora
+  // empieza antes, pero puede terminar después si el resto es más corto)
+  const TOTAL_DURATION = Math.max(cascadeEnd, LAKE_START + LAKE_DURATION);
 
-  // crea el elemento SVG de cada pieza una sola vez; su posición se
-  // actualiza en cada tick del motor de física (más barato que
-  // recrear el DOM en cada frame)
-  pieces.forEach((piece, i) => {
-    const x = width / 2 + (Math.random() - 0.5) * (width * 0.6);
-    const y = -30 - i * 55;
-    piece.body = Bodies.rectangle(x, y, piece.w, piece.h, {
-      restitution: 0.3,
-      friction: 0.5,
-      chamfer: { radius: 4 },
-      angle: (Math.random() - 0.5) * 0.8,
+  // algunas capas, además de fundido + escala, entran deslizándose desde
+  // un lado: la sakura (ramas y hojas) desde la izquierda, la nube desde
+  // la derecha. El sol y los pájaros llevan su propio recorrido (ver más
+  // abajo) y no usan este mapa. El valor es el desplazamiento de partida
+  // en xPercent (negativo = desde la izquierda, positivo = derecha).
+  const entranceX = {
+    ".layer-sakura-hojas": -70,
+    ".layer-sakura-ramas": -70,
+    ".layer-nube": 80,
+  };
+
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (prefersReducedMotion) {
+    // sin animación: se muestra el paisaje completo y quieto de una vez
+    gsap.set(
+      layers.map((l) => l.selector),
+      { opacity: 1, scale: 1, yPercent: 0, xPercent: 0 }
+    );
+    const lagoAguaStatic = document.querySelector(".layer-lago-agua");
+    if (lagoAguaStatic) {
+      gsap.set(lagoAguaStatic, { attr: { height: LAKE_HEIGHT } });
+    }
+  } else {
+    // el sol, en el SVG original, no está centrado horizontalmente (está
+    // bastante a la derecha); para que termine "en el centro de la
+    // imagen" hay que recolocarlo con un desplazamiento fijo -en % de su
+    // propio ancho- que compensa esa diferencia. SUN_FINAL_Y lo baja un
+    // poco respecto a su posición original (a la altura del logo).
+    const SUN_FINAL_X = -423;
+    const SUN_FINAL_Y = 90;
+
+    // punto de partida: la izquierda de la pantalla y más abajo que la
+    // posición final -entre las 7 y las 8 de un reloj centrado en esa
+    // posición final-. SUN_ARC_* es solo el punto de control de la
+    // curva (para que suba en parábola por el camino, no una parada
+    // real de la animación).
+    const SUN_START_X = -1300;
+    const SUN_START_Y = SUN_FINAL_Y + 220;
+    const SUN_ARC_X = (SUN_START_X + SUN_FINAL_X) / 2;
+    const SUN_ARC_Y = SUN_FINAL_Y - 300;
+
+    // estado inicial: todas las capas ocultas y ligeramente reducidas,
+    // listas para la aparición en cascada (y desplazadas si les toca
+    // entrar desde un lado). El sol arranca desde la mitad izquierda de
+    // la pantalla y traza un arco hasta su posición final.
+    const birdEntranceX = Object.fromEntries(birds.map((b) => [b.selector, b.entranceX]));
+
+    // el torii "cae" desde bien arriba del encuadre en vez de aparecer
+    // con fundido + escala: por eso parte totalmente opaco y a tamaño
+    // normal, solo desplazado hacia arriba (como un objeto real que
+    // cuelga fuera de cámara, no algo que se desvanece dentro y fuera)
+    const TORII_DROP_Y = -650;
+
+    const isToriiSelector = (selector) => selector.indexOf(".layer-torii-") === 0;
+    const isPajarosSelector = (selector) => selector.indexOf(".layer-pajaros-") === 0;
+
+    layers.forEach(({ selector }) => {
+      const isSun = selector === ".layer-sol";
+      const isTorii = isToriiSelector(selector);
+      gsap.set(selector, {
+        opacity: isTorii ? 1 : 0,
+        scale: isTorii ? 1 : 0.85,
+        transformOrigin: "50% 50%",
+        xPercent: isSun ? SUN_START_X : entranceX[selector] || birdEntranceX[selector] || 0,
+        yPercent: isSun ? SUN_START_Y : isTorii ? TORII_DROP_Y : 0,
+      });
     });
-    Composite.add(engine.world, piece.body);
 
-    const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svgEl.setAttribute("viewBox", `${piece.bbox.x} ${piece.bbox.y} ${piece.bbox.width} ${piece.bbox.height}`);
-    svgEl.setAttribute("width", piece.w);
-    svgEl.setAttribute("height", piece.h);
-    svgEl.classList.add("stage-piece");
+    // el rótulo cae igual que el torii: opaco y a tamaño normal desde el
+    // principio, solo desplazado hacia arriba fuera de cámara
+    gsap.set(ROTULO_SELECTOR, {
+      opacity: 1,
+      scale: 1,
+      transformOrigin: "50% 50%",
+      xPercent: 0,
+      yPercent: TORII_DROP_Y,
+    });
 
-    const pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    pathEl.setAttribute("d", piece.d);
-    pathEl.setAttribute("fill", PIECE_FILL);
-    svgEl.appendChild(pathEl);
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: sceneSection,
+        start: "top top",
+        end: "+=150%",
+        scrub: 1,
+        pin: true,
+      },
+    });
 
-    stage.appendChild(svgEl);
-    piece.el = svgEl;
-  });
+    // 1) aparición en cascada (fade + scale up + entrada lateral, o
+    // recorrido curvo en el caso del sol)
+    appearanceOrder.forEach((selector, i) => {
+      const time = i * STEP;
 
-  const mouse = Mouse.create(stage);
-  const mouseConstraint = MouseConstraint.create(engine, {
-    mouse,
-    constraint: { stiffness: 0.2, render: { visible: false } },
-  });
-  Composite.add(engine.world, mouseConstraint);
+      if (selector === ".layer-sol") {
+        // arco real (curva de Bézier cuadrática) desde la mitad de la
+        // mitad izquierda hasta la posición actual, con SUN_ARC_* como
+        // punto de control. Se calcula a mano en cada frame -en vez de
+        // encadenar dos tramos rectos- para que sea una única curva
+        // suave de verdad, como el trazo dibujado a mano.
+        const sunEl = document.querySelector(selector);
+        const sunArcDuration = REVEAL_DURATION * 1.4;
+        const sunProgress = { t: 0 };
+        tl.to(
+          sunProgress,
+          {
+            t: 1,
+            duration: sunArcDuration,
+            ease: "sine.inOut",
+            onUpdate: () => {
+              if (!sunEl) return;
+              const t = sunProgress.t;
+              const inv = 1 - t;
+              const x = inv * inv * SUN_START_X + 2 * inv * t * SUN_ARC_X + t * t * SUN_FINAL_X;
+              const y = inv * inv * SUN_START_Y + 2 * inv * t * SUN_ARC_Y + t * t * SUN_FINAL_Y;
+              gsap.set(sunEl, { xPercent: x, yPercent: y });
+            },
+          },
+          time
+        );
+        tl.to(selector, { opacity: 1, scale: 1, duration: sunArcDuration, ease: "power1.out" }, time);
+        return;
+      }
 
-  function renderPieces() {
-    pieces.forEach((piece) => {
-      piece.el.style.left = `${piece.body.position.x - piece.w / 2}px`;
-      piece.el.style.top = `${piece.body.position.y - piece.h / 2}px`;
-      piece.el.style.transform = `rotate(${piece.body.angle}rad)`;
+      if (selector === ".layer-sakura-ramas") {
+        // las hojas arrancan en el mismo instante que las ramas, pero
+        // con más duración: van un paso por detrás durante toda la
+        // aparición y terminan de "florecer" justo después de que la
+        // rama ya esté completa
+        tl.to(
+          selector,
+          { opacity: 1, scale: 1, xPercent: 0, duration: REVEAL_DURATION, ease: "power2.out" },
+          time
+        );
+        tl.to(
+          ".layer-sakura-hojas",
+          { opacity: 1, scale: 1, xPercent: 0, duration: HOJAS_DURATION, ease: "power2.out" },
+          time
+        );
+        return;
+      }
+
+      if (selector === "TORII") {
+        // las 3 piezas completas del torii (tejado, cuerpo, base) caen
+        // desde arriba del encuadre y se van colocando una tras otra, de
+        // arriba abajo. "power2.in" acelera la caída como si fuera peso
+        // real (empieza despacio, cae cada vez más rápido) y se para en
+        // seco al llegar a su sitio, sin rebote; cada pieza tarda lo
+        // suyo (duration distinto en toriiPieces), así que caen a
+        // velocidades distintas entre sí.
+        toriiPieces.forEach(({ selector: pieceSelector, delay, duration }) => {
+          tl.to(pieceSelector, { yPercent: 0, duration, ease: "power2.in" }, time + delay);
+        });
+
+        // la nube empieza a aparecer justo cuando arranca la caída del
+        // tejado (la última pieza del torii en soltarse)
+        const tejadoPiece = toriiPieces.find((p) => p.selector === ".layer-torii-tejado");
+        tl.to(
+          ".layer-nube",
+          { opacity: 1, scale: 1, xPercent: 0, duration: REVEAL_DURATION, ease: "power2.out" },
+          time + tejadoPiece.delay
+        );
+
+        // el rótulo cae justo después, como una pieza más de la puerta
+        // (incluso un poco más tarde que el tejado, para que se note que
+        // llega detrás de toda la estructura)
+        tl.to(
+          ROTULO_SELECTOR,
+          { yPercent: 0, duration: lastToriiPiece.duration, ease: "power2.in" },
+          time + tejadoPiece.delay + 0.1
+        );
+        return;
+      }
+
+      if (selector === "PAJAROS") {
+        // cada pájaro entra por separado: su propio desplazamiento de
+        // entrada (desde la izquierda o la derecha, según entranceX),
+        // su propio pequeño retraso y su propia duración, para que no
+        // vuelen los tres a la vez en bloque sino cada uno a su aire y a
+        // su propia velocidad. Además de desplazarse en horizontal, cada
+        // uno aletea: un vaivén vertical en forma de onda (seno) que se
+        // calcula a mano cuadro a cuadro -igual que el arco del sol- para
+        // que el movimiento de subida y bajada sea real, no solo una
+        // línea recta de entrada.
+        birds.forEach(({ selector: birdSelector, entranceX, delay, duration, bobAmplitude, bobCycles }) => {
+          const birdEl = document.querySelector(birdSelector);
+          const birdProgress = { t: 0 };
+          tl.to(
+            birdProgress,
+            {
+              t: 1,
+              duration,
+              ease: "power3.out",
+              onUpdate: () => {
+                if (!birdEl) return;
+                const t = birdProgress.t;
+                const x = entranceX * (1 - t);
+                const y = Math.sin(t * bobCycles * Math.PI * 2) * bobAmplitude * (1 - t * 0.3);
+                gsap.set(birdEl, { xPercent: x, yPercent: y });
+              },
+            },
+            time + delay
+          );
+          tl.to(birdSelector, { opacity: 1, scale: 1, duration, ease: "power3.out" }, time + delay);
+        });
+        return;
+      }
+
+      tl.to(selector, { opacity: 1, scale: 1, xPercent: 0, duration: REVEAL_DURATION, ease: "power2.out" }, time);
+    });
+
+    // el lago se llena de agua el último de todos: el rectángulo del
+    // degradado azul (recortado con la forma del lago) crece desde
+    // altura 0 -con la parte de arriba fija, junto a la boca del río-
+    // hacia abajo, como si el agua entrara por el río y fuera cubriendo
+    // el lago hacia el frente (no subiendo desde la base)
+    const lagoAgua = document.querySelector(".layer-lago-agua");
+    if (lagoAgua) {
+      tl.to(
+        lagoAgua,
+        {
+          attr: { height: LAKE_HEIGHT },
+          duration: LAKE_DURATION,
+          ease: "sine.inOut",
+        },
+        LAKE_START
+      );
+    }
+
+    // 2) parallax por profundidad, en paralelo durante todo el tramo
+    // (el sol queda fuera: su propio recorrido curvo ya controla su
+    // posición vertical, y mezclarlo con el parallax lo haría temblar)
+    layers.forEach(({ selector, depth }) => {
+      // el sol tiene su propio recorrido curvo, el torii su propia
+      // caída, y los pájaros su propio aleteo: mezclarlos con este
+      // parallax genérico haría que todos esos recorridos "temblaran"
+      // al competir por yPercent
+      if (selector === ".layer-sol" || isToriiSelector(selector) || isPajarosSelector(selector)) return;
+      tl.to(selector, { yPercent: -20 * depth, ease: "none", duration: TOTAL_DURATION }, 0);
     });
   }
 
-  const runner = Runner.create();
-  Runner.run(runner, engine);
-  Events.on(engine, "afterUpdate", renderPieces);
-  renderPieces();
-}
+  });
 
-// solo tiene sentido esperar a Matter.js (y solo la home carga su
-// script) si esta página realmente tiene el escenario de física
-if (document.getElementById("stage")) {
-  waitForMatter(setupLogoPhysics);
+  mm.add("(max-width: 768px)", () => {
+    // TODO: composición mobile -se construye capa a capa, indicando qué
+    // piezas del paisaje se usan y en qué posición/tamaño quedan.
+  });
+
+  window.addEventListener("load", () => ScrollTrigger.refresh());
 }
