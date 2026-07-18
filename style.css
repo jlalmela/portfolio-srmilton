@@ -1,0 +1,217 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: oklch(98% 0.006 80);
+  color: oklch(20% 0.005 80);
+  font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  overflow-x: hidden;
+}
+
+a {
+  color: oklch(45% 0.11 40);
+  text-decoration: none;
+}
+
+a:hover {
+  color: oklch(35% 0.11 40);
+}
+
+/* =========================================================
+   CABECERA: menú hamburguesa (se despliega al pasar el ratón,
+   o al pulsar en móvil/táctil) + logo circular con crossfade
+   ========================================================= */
+.site-header {
+  /* posicionada + con z-index propio: sin esto, el menú desplegable
+     y el "stage" de la física de abajo compiten por el mismo nivel
+     de apilamiento y, al venir el stage después en el HTML, ganaba
+     él y tapaba los clics sobre "Contacto" (el enlace que más se
+     adentra en esa zona de solape) */
+  position: relative;
+  z-index: 20;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 48px 64px;
+}
+
+.menu-wrap {
+  position: relative;
+  padding-bottom: 12px;
+}
+
+.menu-btn {
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.menu-btn span {
+  width: 28px;
+  height: 3px;
+  background: #792528;
+  border-radius: 2px;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* transforma en "X" cuando el menú está abierto */
+.menu-wrap.is-open .menu-btn span:nth-child(1) {
+  transform: translateY(8px) rotate(45deg);
+}
+.menu-wrap.is-open .menu-btn span:nth-child(2) {
+  opacity: 0;
+}
+.menu-wrap.is-open .menu-btn span:nth-child(3) {
+  transform: translateY(-8px) rotate(-45deg);
+}
+
+.nav-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+  background: oklch(98% 0.006 80);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px);
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
+}
+
+.menu-wrap.is-open .nav-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.nav-menu a {
+  padding: 6px 8px;
+  color: #792528;
+  /* +4pt (~5.3px) respecto al tamaño anterior (clamp(1.4rem, 3.2vw, 1.9rem)) */
+  font-size: clamp(1.75rem, 3.6vw, 2.25rem);
+  transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.nav-menu a:hover {
+  transform: translateX(10px);
+  color: #c98f91;
+}
+
+.logo-wrap {
+  /* 25% más pequeño que el original (clamp(80px, 22vw, 165px)) */
+  --s: clamp(60px, 16.5vw, 123.75px);
+  position: relative;
+  width: var(--s);
+  height: var(--s);
+  flex-shrink: 0;
+  display: block;
+}
+
+.logo-img {
+  position: absolute;
+  inset: 0;
+  width: var(--s);
+  height: var(--s);
+  transition: opacity 0.5s ease;
+}
+
+.logo-img--front {
+  opacity: 1;
+}
+
+.logo-img--back {
+  opacity: 0;
+}
+
+/* al pasar el ratón, los colores se invierten de forma gradual:
+   el círculo granate pasa a blanco y el sombrero blanco pasa a
+   granate (crossfade entre las dos versiones del SVG) */
+.logo-wrap:hover .logo-img--front {
+  opacity: 0;
+}
+
+.logo-wrap:hover .logo-img--back {
+  opacity: 1;
+}
+
+/* =========================================================
+   ESCENARIO DE FÍSICA: las piezas del logo caen con gravedad
+   (Matter.js) y se pueden arrastrar con el ratón/dedo
+   ========================================================= */
+.stage-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 48px 24px;
+}
+
+.stage {
+  position: relative;
+  width: 100%;
+  height: 480px;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+
+.stage:active {
+  cursor: grabbing;
+}
+
+.stage-piece {
+  position: absolute;
+  will-change: transform;
+  pointer-events: none; /* Matter.js Mouse ya escucha en .stage; el hijo no necesita capturar eventos */
+}
+
+.stage-hint {
+  text-align: center;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: oklch(55% 0.02 80);
+}
+
+.content-section {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 80px 48px;
+}
+
+.content-section h2 {
+  font-family: "Source Serif 4", "Georgia", serif;
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.content-section p {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: oklch(35% 0.01 80);
+}
+
+@media (max-width: 600px) {
+  .site-header {
+    padding: 24px 24px 40px;
+  }
+  .stage-section {
+    padding: 0 24px 24px;
+  }
+  .stage {
+    height: 360px;
+  }
+  .content-section {
+    padding: 56px 24px;
+  }
+}

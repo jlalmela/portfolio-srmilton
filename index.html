@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sr Milton — Portfolio</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header class="site-header" id="top">
+  <div class="menu-wrap" id="menu-wrap">
+    <button class="menu-btn" id="menu-btn" aria-label="Abrir menú" aria-expanded="false" aria-controls="nav-menu">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    <nav class="nav-menu" id="nav-menu">
+      <a href="#work">Portfolio</a>
+      <a href="#about">Sobre mí</a>
+      <a href="#contact">Contacto</a>
+    </nav>
+  </div>
+
+  <a href="#top" class="logo-wrap" aria-label="Sr Milton, inicio">
+    <img src="assets/logo-sr-milton-badge.svg" alt="Sr Milton" class="logo-img logo-img--front" />
+    <img src="assets/logo-sr-milton-badge-inverted.svg" alt="" class="logo-img logo-img--back" aria-hidden="true" />
+  </a>
+</header>
+
+<main>
+  <section class="stage-section" id="work">
+    <div class="stage" id="stage"></div>
+    <p class="stage-hint">Arrastra las piezas del logo</p>
+  </section>
+
+  <section class="content-section" id="about">
+    <h2>Sobre mí</h2>
+    <p>Aquí va la presentación de Sr Milton: quién es, a qué se dedica y qué le hace distinto. Sección lista para rellenar con el contenido definitivo.</p>
+  </section>
+
+  <section class="content-section" id="contact">
+    <h2>Contacto</h2>
+    <p>Aquí van los datos de contacto (email, redes, formulario). Sección lista para rellenar con el contenido definitivo.</p>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.20.0/matter.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
