@@ -174,6 +174,55 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
     { selector: ".layer-sakura-ramas", depth: 0.8 },
   ];
 
+  // --- Helpers compartidos entre escritorio y móvil ---------------------
+  // El arco del sol (curva de Bézier cuadrática) y el aleteo de los
+  // pájaros (vaivén senoidal) se calculan a mano cuadro a cuadro con un
+  // tween sobre un objeto proxy, en vez de sobre el propio elemento, para
+  // que sea una única curva/onda suave (no tramos rectos encadenados).
+  // Ambas versiones (escritorio y móvil) usan exactamente la misma
+  // fórmula sobre coordenadas distintas, así que se extraen aquí una
+  // sola vez en lugar de duplicar el cálculo en cada bloque.
+  function addArcMotion(timeline, el, { startX, startY, arcX, arcY, endX, endY, duration, time, ease = "sine.inOut" }) {
+    const progress = { t: 0 };
+    timeline.to(
+      progress,
+      {
+        t: 1,
+        duration,
+        ease,
+        onUpdate: () => {
+          if (!el) return;
+          const t = progress.t;
+          const inv = 1 - t;
+          const x = inv * inv * startX + 2 * inv * t * arcX + t * t * endX;
+          const y = inv * inv * startY + 2 * inv * t * arcY + t * t * endY;
+          gsap.set(el, { xPercent: x, yPercent: y });
+        },
+      },
+      time
+    );
+  }
+
+  function addBirdMotion(timeline, el, { restX = 0, entranceX, delay, duration, bobAmplitude, bobCycles, ease = "power3.out" }) {
+    const progress = { t: 0 };
+    timeline.to(
+      progress,
+      {
+        t: 1,
+        duration,
+        ease,
+        onUpdate: () => {
+          if (!el) return;
+          const t = progress.t;
+          const x = restX + entranceX * (1 - t);
+          const y = Math.sin(t * bobCycles * Math.PI * 2) * bobAmplitude * (1 - t * 0.3);
+          gsap.set(el, { xPercent: x, yPercent: y });
+        },
+      },
+      delay
+    );
+  }
+
   // el rótulo "Sr Milton" no lleva parallax propio ni fundido: cae desde
   // arriba igual que las piezas del torii (ver más abajo, dentro del
   // bloque "TORII"), como una pieza más de la puerta.
@@ -248,7 +297,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
   // SVG (espacio interno 750x500, antes del escalado x4.1667 del canvas).
   // Estos valores vienen del contorno que el propio usuario redibujó a
   // mano (lago.svg), convertido a puntos y reescalado a este espacio.
-  const LAKE_Y = 245.27998037760156;
+  const LAKE_Y = 239.27998037760156; // subida 6 puntos en total respecto al valor original
   const LAKE_HEIGHT = 203.51998371840128;
 
   // la duración total del recorrido tiene que cubrir lo que tarde más:
@@ -358,24 +407,16 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
         // suave de verdad, como el trazo dibujado a mano.
         const sunEl = document.querySelector(selector);
         const sunArcDuration = REVEAL_DURATION * 1.4;
-        const sunProgress = { t: 0 };
-        tl.to(
-          sunProgress,
-          {
-            t: 1,
-            duration: sunArcDuration,
-            ease: "sine.inOut",
-            onUpdate: () => {
-              if (!sunEl) return;
-              const t = sunProgress.t;
-              const inv = 1 - t;
-              const x = inv * inv * SUN_START_X + 2 * inv * t * SUN_ARC_X + t * t * SUN_FINAL_X;
-              const y = inv * inv * SUN_START_Y + 2 * inv * t * SUN_ARC_Y + t * t * SUN_FINAL_Y;
-              gsap.set(sunEl, { xPercent: x, yPercent: y });
-            },
-          },
-          time
-        );
+        addArcMotion(tl, sunEl, {
+          startX: SUN_START_X,
+          startY: SUN_START_Y,
+          arcX: SUN_ARC_X,
+          arcY: SUN_ARC_Y,
+          endX: SUN_FINAL_X,
+          endY: SUN_FINAL_Y,
+          duration: sunArcDuration,
+          time,
+        });
         tl.to(selector, { opacity: 1, scale: 1, duration: sunArcDuration, ease: "power1.out" }, time);
         return;
       }
@@ -442,23 +483,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
         // línea recta de entrada.
         birds.forEach(({ selector: birdSelector, entranceX, delay, duration, bobAmplitude, bobCycles }) => {
           const birdEl = document.querySelector(birdSelector);
-          const birdProgress = { t: 0 };
-          tl.to(
-            birdProgress,
-            {
-              t: 1,
-              duration,
-              ease: "power3.out",
-              onUpdate: () => {
-                if (!birdEl) return;
-                const t = birdProgress.t;
-                const x = entranceX * (1 - t);
-                const y = Math.sin(t * bobCycles * Math.PI * 2) * bobAmplitude * (1 - t * 0.3);
-                gsap.set(birdEl, { xPercent: x, yPercent: y });
-              },
-            },
-            time + delay
-          );
+          addBirdMotion(tl, birdEl, { entranceX, delay: time + delay, duration, bobAmplitude, bobCycles });
           tl.to(birdSelector, { opacity: 1, scale: 1, duration, ease: "power3.out" }, time + delay);
         });
         return;
@@ -501,9 +526,10 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
   });
 
   mm.add("(max-width: 768px)", () => {
-    // composición mobile: se construye capa a capa. Por ahora solo
-    // colocamos la montaña que lleva el lago, centrada; el resto de
-    // piezas quedan ocultas hasta que las vayamos añadiendo una a una.
+    // composición móvil: propia y distinta de la de escritorio, pensada
+    // para un encuadre vertical. Reutiliza los mismos recursos del SVG,
+    // pero con su propia posición, escala y tiempos para cada capa.
+    // El suelo no se usa en esta composición y queda oculto.
     const MOBILE_HIDDEN_SELECTORS = [".layer-suelo"];
     gsap.set(MOBILE_HIDDEN_SELECTORS, { opacity: 0 });
 
@@ -542,20 +568,17 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
     const MOBILE_SCALE = 0.75; // 25% más pequeño
 
     // ajuste fino del agua respecto a la montaña, para que encaje bien
-    // en el hueco del lago: 20 + 35 hacia abajo y 20 + 30 menos hacia la
-    // derecha en rondas anteriores no bastaban -seguía sin encajar-, así
-    // que se añade un salto mucho mayor hacia abajo (200 más). El
-    // ancho/alto propio del rect del lago (outer, antes de escalar) son
-    // 1713 y 848 -de ahí sale el % de cada ajuste.
+    // en el hueco del lago. El ancho/alto propio del rect del lago
+    // (outer, antes de escalar) son 1713 y 848 -de ahí sale el % de
+    // cada ajuste.
     const MOBILE_LAGO_WIDTH_OUTER = 1713;
     const MOBILE_LAGO_HEIGHT_OUTER = 848;
-    // ajuste acumulado hacia la izquierda tras muchas rondas de "un
-    // poco más a la izquierda": 162 unidades outer en total
+    // ajuste fino hacia la izquierda respecto al desplazamiento de la
+    // montaña, en unidades outer
     const MOBILE_LAGO_X_ADJUST = 166;
     const MOBILE_LAGO_X =
       ((MOBILE_SHIFT_OUTER - MOBILE_LAGO_X_ADJUST) / MOBILE_LAGO_WIDTH_OUTER) * 100;
-    // ajuste acumulado hacia abajo tras muchas rondas de "un poco más
-    // arriba/abajo": 53 unidades outer en total
+    // ajuste fino hacia abajo, en unidades outer
     const MOBILE_LAGO_Y_ADJUST = 51;
     const MOBILE_LAGO_Y = (MOBILE_LAGO_Y_ADJUST / MOBILE_LAGO_HEIGHT_OUTER) * 100;
 
@@ -636,20 +659,23 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
       { selector: ".layer-torii-cuerpo", widthOuter: 768, heightOuter: 691, downExtraOuter: 0, delay: 0.3, duration: 0.85 },
       { selector: ".layer-torii-tejado", widthOuter: 977, heightOuter: 218, downExtraOuter: 105, delay: 0.6, duration: 0.7 },
     ];
-    mobileToriiPieces.forEach(({ selector, widthOuter, heightOuter, downExtraOuter }) => {
-      const restX = (MOBILE_TORII_SHIFT_OUTER / widthOuter) * 100;
-      const restY = ((MOBILE_TORII_DOWN_OUTER + downExtraOuter) / heightOuter) * 100;
+    // restX/restY de cada pieza se calculan una sola vez aquí y se
+    // guardan en el propio objeto, para no repetir la misma cuenta más
+    // abajo cuando se anima la caída.
+    mobileToriiPieces.forEach((piece) => {
+      piece.restX = (MOBILE_TORII_SHIFT_OUTER / piece.widthOuter) * 100;
+      piece.restY = ((MOBILE_TORII_DOWN_OUTER + piece.downExtraOuter) / piece.heightOuter) * 100;
       // OJO: en móvil el recorte "slice" no oculta nada en vertical (se
       // ve la altura completa del lienzo), a diferencia de escritorio;
       // así que empujar la pieza hacia arriba con yPercent no basta para
       // esconderla del todo al cargar la página -por eso también arranca
       // con opacity 0, y se hace visible justo cuando empieza a caer-
-      gsap.set(selector, {
+      gsap.set(piece.selector, {
         opacity: 0,
         scale: MOBILE_TORII_SCALE,
         transformOrigin: "50% 50%",
-        xPercent: restX,
-        yPercent: MOBILE_TORII_DROP_Y + restY,
+        xPercent: piece.restX,
+        yPercent: MOBILE_TORII_DROP_Y + piece.restY,
       });
     });
 
@@ -760,26 +786,16 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
     // curva suave (no dos tramos rectos encadenados)
     const solElMobile = document.querySelector(".layer-sol");
     const MOBILE_SOL_ARC_DURATION = MOBILE_REVEAL_DURATION * 1.4;
-    const solProgressMobile = { t: 0 };
-    mobileTl.to(
-      solProgressMobile,
-      {
-        t: 1,
-        duration: MOBILE_SOL_ARC_DURATION,
-        ease: "sine.inOut",
-        onUpdate: () => {
-          if (!solElMobile) return;
-          const t = solProgressMobile.t;
-          const inv = 1 - t;
-          const x =
-            inv * inv * MOBILE_SOL_START_X + 2 * inv * t * MOBILE_SOL_ARC_X + t * t * MOBILE_SOL_X;
-          const y =
-            inv * inv * MOBILE_SOL_START_Y + 2 * inv * t * MOBILE_SOL_ARC_Y + t * t * MOBILE_SOL_Y;
-          gsap.set(solElMobile, { xPercent: x, yPercent: y });
-        },
-      },
-      0
-    );
+    addArcMotion(mobileTl, solElMobile, {
+      startX: MOBILE_SOL_START_X,
+      startY: MOBILE_SOL_START_Y,
+      arcX: MOBILE_SOL_ARC_X,
+      arcY: MOBILE_SOL_ARC_Y,
+      endX: MOBILE_SOL_X,
+      endY: MOBILE_SOL_Y,
+      duration: MOBILE_SOL_ARC_DURATION,
+      time: 0,
+    });
     mobileTl.to(
       ".layer-sol",
       { opacity: 1, scale: MOBILE_SOL_SCALE, duration: MOBILE_SOL_ARC_DURATION, ease: "power1.out" },
@@ -803,8 +819,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
     // luego el cuerpo, el tejado el último), manteniendo fijo el
     // desplazamiento horizontal ya colocado arriba -solo se anima la
     // caída vertical-
-    mobileToriiPieces.forEach(({ selector, heightOuter, downExtraOuter, delay, duration }) => {
-      const restY = ((MOBILE_TORII_DOWN_OUTER + downExtraOuter) / heightOuter) * 100;
+    mobileToriiPieces.forEach(({ selector, restY, delay, duration }) => {
       // opacity casi instantánea (0.05s) justo al empezar a caer, para
       // que aparezca de golpe "cayendo" en vez de hacer un fundido lento
       mobileTl.to(selector, { opacity: 1, duration: 0.05, ease: "none" }, delay);
@@ -913,23 +928,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
 
     mobileBirds.forEach(({ selector, entranceX, restX, delay, duration, bobAmplitude, bobCycles }) => {
       const birdEl = document.querySelector(selector);
-      const birdProgress = { t: 0 };
-      mobileTl.to(
-        birdProgress,
-        {
-          t: 1,
-          duration,
-          ease: "power3.out",
-          onUpdate: () => {
-            if (!birdEl) return;
-            const t = birdProgress.t;
-            const x = restX + entranceX * (1 - t);
-            const y = Math.sin(t * bobCycles * Math.PI * 2) * bobAmplitude * (1 - t * 0.3);
-            gsap.set(birdEl, { xPercent: x, yPercent: y });
-          },
-        },
-        delay
-      );
+      addBirdMotion(mobileTl, birdEl, { restX, entranceX, delay, duration, bobAmplitude, bobCycles });
       mobileTl.to(selector, { opacity: 1, scale: 1, duration, ease: "power3.out" }, delay);
     });
   });
