@@ -106,6 +106,11 @@ if (bulbViewer && window.THREE) {
         bulbMesh = gltf.scene;
         bulbMesh.traverse((child) => {
           if (child.isMesh) {
+            // el modelo viene de una malla muy reducida (decimada) para que
+            // cargue rápido; da igual si el .glb trae o no las normales
+            // correctas -calcularlas aquí directamente garantiza que la luz
+            // se refleje bien en la superficie sin depender de eso-
+            child.geometry.computeVertexNormals();
             child.material = new THREE.MeshStandardMaterial({
               color: 0xfff2d0,
               emissive: 0xffc978,
