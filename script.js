@@ -59,6 +59,94 @@ if (enjoyText && window.gsap) {
 }
 
 /* =========================================================
+   BOMBILLA 3D (página Portfolio)
+   Modelo importado desde Blender (assets/bombilla.glb, ya reducido de
+   ~330.000 a 6.000 triángulos para que cargue rápido en la web) y
+   mostrado con Three.js: gira despacio sobre sí misma y el cristal
+   lleva un material emisivo cálido cuya intensidad "respira" poco a
+   poco, para dar sensación de estar encendida sin ser un parpadeo
+   brusco. Todo este bloque se salta entero en páginas que no llevan
+   el visor (solo existe en portfolio.html).
+   ========================================================= */
+const bulbViewer = document.getElementById("bulb-viewer");
+if (bulbViewer && window.THREE) {
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+  // el modelo se recentra en el origen más abajo (bulbMesh.position.sub(center)),
+  // así que la cámara tiene que mirar al origen, no a la altura original del .obj
+  camera.position.set(0, 4, 32);
+  camera.lookAt(0, 0, 0);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  bulbViewer.appendChild(renderer.domElement);
+
+  // luz ambiente suave + un punto de luz cálido junto al cristal, para
+  // que el propio modelo proyecte algo de luz "encendida" a su alrededor
+  scene.add(new THREE.AmbientLight(0xfff4e0, 0.6));
+  const bulbLight = new THREE.PointLight(0xffdca8, 1.4, 60);
+  bulbLight.position.set(0, 8, 10);
+  scene.add(bulbLight);
+
+  let bulbMesh = null;
+  const loader = new THREE.GLTFLoader();
+  loader.load(
+    "assets/bombilla.glb",
+    (gltf) => {
+      bulbMesh = gltf.scene;
+      bulbMesh.traverse((child) => {
+        if (child.isMesh) {
+          child.material = new THREE.MeshStandardMaterial({
+            color: 0xfff2d0,
+            emissive: 0xffc978,
+            emissiveIntensity: 0.6,
+            roughness: 0.35,
+            metalness: 0.05,
+            transparent: true,
+            opacity: 0.92,
+            side: THREE.DoubleSide,
+          });
+        }
+      });
+      // centrar el modelo en el visor (el .obj original venía con su
+      // propio origen descentrado)
+      const box = new THREE.Box3().setFromObject(bulbMesh);
+      const center = box.getCenter(new THREE.Vector3());
+      bulbMesh.position.sub(center);
+      scene.add(bulbMesh);
+    },
+    undefined,
+    (err) => console.warn("No se pudo cargar bombilla.glb", err)
+  );
+
+  function resizeBulbViewer() {
+    const size = bulbViewer.clientWidth || 200;
+    renderer.setSize(size, size, false);
+    camera.aspect = 1;
+    camera.updateProjectionMatrix();
+  }
+  resizeBulbViewer();
+  window.addEventListener("resize", resizeBulbViewer);
+
+  const clock = new THREE.Clock();
+  function animateBulb() {
+    requestAnimationFrame(animateBulb);
+    const t = clock.getElapsedTime();
+    if (bulbMesh) {
+      bulbMesh.rotation.y = t * 0.5; // giro lento y constante
+      bulbMesh.traverse((child) => {
+        if (child.isMesh) {
+          // el brillo "respira": sube y baja despacio en vez de quedar fijo
+          child.material.emissiveIntensity = 0.55 + Math.sin(t * 1.8) * 0.25;
+        }
+      });
+    }
+    renderer.render(scene, camera);
+  }
+  animateBulb();
+}
+
+/* =========================================================
    MENÚ HAMBURGUESA
    Se abre al pasar el ratón (como en el diseño original) y
    también con un click, para que funcione igual en pantallas
