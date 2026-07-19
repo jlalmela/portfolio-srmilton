@@ -463,8 +463,414 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
   });
 
   mm.add("(max-width: 768px)", () => {
-    // TODO: composición mobile -se construye capa a capa, indicando qué
-    // piezas del paisaje se usan y en qué posición/tamaño quedan.
+    // composición mobile: se construye capa a capa. Por ahora solo
+    // colocamos la montaña que lleva el lago, centrada; el resto de
+    // piezas quedan ocultas hasta que las vayamos añadiendo una a una.
+    const MOBILE_HIDDEN_SELECTORS = [".layer-suelo"];
+    gsap.set(MOBILE_HIDDEN_SELECTORS, { opacity: 0 });
+
+    // el lago (el hueco de agua recortado dentro de la montaña): altura
+    // final tal como quedó definida para el lago (LAKE_HEIGHT de la
+    // versión de escritorio)
+    const MOBILE_LAKE_HEIGHT = 203.51998371840128;
+    const lagoAguaMobile = document.querySelector(".layer-lago-agua");
+
+    // IMPORTANTE: hay que calcular la posición (xPercent/yPercent) con
+    // el rectángulo a su altura FINAL, no a 0. GSAP calcula esos
+    // porcentajes sobre el tamaño del elemento en el momento en que se
+    // aplican -si la altura es 0 en ese instante, el cálculo del
+    // desplazamiento vertical sale mal (por eso "bajar más" no se
+    // traducía en bajar más)-. Por eso primero se deja a su altura
+    // completa, se coloca, y solo al final se vuelve a poner a 0 para
+    // que arranque desde ahí la animación de relleno.
+    if (lagoAguaMobile) {
+      gsap.set(lagoAguaMobile, { attr: { height: MOBILE_LAKE_HEIGHT } });
+    }
+
+    // la montaña con el lago abarca todo el ancho del lienzo (3125), así
+    // que centrarla de verdad significa centrar el propio lago -que es
+    // la parte que de verdad se reconoce como "esa montaña"- en mitad
+    // del ancho del lienzo (1562.5). El lago está en outer x:[199,1912],
+    // centro 1055.5; hacían falta 507 unidades hacia la derecha para
+    // centrarlo, más 50 unidades más pedidas después (total 557), además
+    // de reducir el tamaño final un 25% (escala 0.75). El desplazamiento
+    // se expresa como % del ancho propio de cada elemento -así se mueven
+    // la montaña y el lago exactamente lo mismo en píxeles, aunque
+    // tengan anchos de caja distintos- y ese % no cambia por aplicar
+    // además una escala, porque el porcentaje siempre es relativo a la
+    // caja original del elemento, no al tamaño ya escalado.
+    const MOBILE_SHIFT_OUTER = 507 + 50;
+    const MOBILE_MONTANAS_X = (MOBILE_SHIFT_OUTER / 3125) * 100;
+    const MOBILE_SCALE = 0.75; // 25% más pequeño
+
+    // ajuste fino del agua respecto a la montaña, para que encaje bien
+    // en el hueco del lago: 20 + 35 hacia abajo y 20 + 30 menos hacia la
+    // derecha en rondas anteriores no bastaban -seguía sin encajar-, así
+    // que se añade un salto mucho mayor hacia abajo (200 más). El
+    // ancho/alto propio del rect del lago (outer, antes de escalar) son
+    // 1713 y 848 -de ahí sale el % de cada ajuste.
+    const MOBILE_LAGO_WIDTH_OUTER = 1713;
+    const MOBILE_LAGO_HEIGHT_OUTER = 848;
+    // ajuste acumulado hacia la izquierda tras muchas rondas de "un
+    // poco más a la izquierda": 162 unidades outer en total
+    const MOBILE_LAGO_X_ADJUST = 166;
+    const MOBILE_LAGO_X =
+      ((MOBILE_SHIFT_OUTER - MOBILE_LAGO_X_ADJUST) / MOBILE_LAGO_WIDTH_OUTER) * 100;
+    // ajuste acumulado hacia abajo tras muchas rondas de "un poco más
+    // arriba/abajo": 53 unidades outer en total
+    const MOBILE_LAGO_Y_ADJUST = 51;
+    const MOBILE_LAGO_Y = (MOBILE_LAGO_Y_ADJUST / MOBILE_LAGO_HEIGHT_OUTER) * 100;
+
+    // mismo efecto de aparición que en la versión de escritorio: fundido
+    // (opacidad 0->1) + escalado suave (de 0.85 veces el tamaño final a
+    // el tamaño final), disparado por el scroll. Se aplica igual a la
+    // montaña y al agua, para que entren juntas como una sola pieza.
+    const MOBILE_REVEAL_DURATION = 0.6;
+    const mobileEntranceTargets = [".layer-montanas", lagoAguaMobile].filter(Boolean);
+
+    gsap.set(".layer-montanas", {
+      opacity: 0,
+      scale: MOBILE_SCALE * 0.85,
+      transformOrigin: "50% 50%",
+      xPercent: MOBILE_MONTANAS_X,
+      yPercent: 0,
+    });
+    if (lagoAguaMobile) {
+      gsap.set(lagoAguaMobile, {
+        opacity: 0,
+        scale: MOBILE_SCALE * 0.85,
+        transformOrigin: "50% 50%",
+        xPercent: MOBILE_LAGO_X,
+        yPercent: MOBILE_LAGO_Y,
+      });
+      // ahora que xPercent/yPercent ya quedaron calculados correctamente
+      // (con la altura completa), se vuelve a poner a 0 para que la
+      // animación de relleno de más abajo empiece desde ahí
+      gsap.set(lagoAguaMobile, { attr: { height: 0 } });
+    }
+
+    // el sol: posición final ya colocada (MOBILE_SOL_X/Y); ahora llega
+    // haciendo el mismo arco curvo (una curva de Bézier cuadrática) que
+    // en la versión de escritorio, en vez de un fundido simple. Se
+    // reutilizan los mismos desplazamientos relativos que en escritorio
+    // (arranca más a la izquierda y más abajo que su posición final, y
+    // el punto de control del arco queda más arriba), aplicados sobre
+    // la posición final ya ajustada aquí en móvil.
+    const MOBILE_SOL_WIDTH_OUTER = 194;
+    const MOBILE_SOL_HEIGHT_OUTER = 184;
+    const MOBILE_SOL_X = (-600 / MOBILE_SOL_WIDTH_OUTER) * 100;
+    const MOBILE_SOL_Y = (200 / MOBILE_SOL_HEIGHT_OUTER) * 100;
+    const MOBILE_SOL_SCALE = 1;
+    const MOBILE_SOL_START_X = MOBILE_SOL_X - 877;
+    const MOBILE_SOL_START_Y = MOBILE_SOL_Y + 220;
+    const MOBILE_SOL_ARC_X = (MOBILE_SOL_START_X + MOBILE_SOL_X) / 2;
+    const MOBILE_SOL_ARC_Y = MOBILE_SOL_Y - 300;
+    gsap.set(".layer-sol", {
+      opacity: 0,
+      scale: MOBILE_SOL_SCALE * 0.85,
+      transformOrigin: "50% 50%",
+      xPercent: MOBILE_SOL_START_X,
+      yPercent: MOBILE_SOL_START_Y,
+    });
+
+    // el torii (las 3 piezas) y el rótulo: caen desde arriba igual que
+    // en escritorio (opacos desde el principio, solo desplazándose en
+    // vertical), pero desplazados 600 unidades outer a la izquierda
+    // respecto a su posición original -que, como el resto de piezas,
+    // queda fuera de la franja visible en móvil-. Cada pieza tiene su
+    // propio ancho (outer), de ahí sale el % de cada una.
+    const MOBILE_TORII_DROP_Y = -650;
+    const MOBILE_TORII_SHIFT_OUTER = -600 - 500 + 100 + 150;
+    const MOBILE_TORII_DOWN_OUTER = 450;
+    const MOBILE_TORII_SCALE = 0.7; // 30% más pequeño
+    // el tejado necesitaba además otros 30 puntos de más hacia abajo
+    // que el resto de piezas -de ahí el downExtraOuter individual-
+    const mobileToriiPieces = [
+      { selector: ".layer-torii-base", widthOuter: 397, heightOuter: 114, downExtraOuter: 0, delay: 0, duration: 0.75 },
+      { selector: ".layer-torii-cuerpo", widthOuter: 768, heightOuter: 691, downExtraOuter: 0, delay: 0.3, duration: 0.85 },
+      { selector: ".layer-torii-tejado", widthOuter: 977, heightOuter: 218, downExtraOuter: 105, delay: 0.6, duration: 0.7 },
+    ];
+    mobileToriiPieces.forEach(({ selector, widthOuter, heightOuter, downExtraOuter }) => {
+      const restX = (MOBILE_TORII_SHIFT_OUTER / widthOuter) * 100;
+      const restY = ((MOBILE_TORII_DOWN_OUTER + downExtraOuter) / heightOuter) * 100;
+      // OJO: en móvil el recorte "slice" no oculta nada en vertical (se
+      // ve la altura completa del lienzo), a diferencia de escritorio;
+      // así que empujar la pieza hacia arriba con yPercent no basta para
+      // esconderla del todo al cargar la página -por eso también arranca
+      // con opacity 0, y se hace visible justo cuando empieza a caer-
+      gsap.set(selector, {
+        opacity: 0,
+        scale: MOBILE_TORII_SCALE,
+        transformOrigin: "50% 50%",
+        xPercent: restX,
+        yPercent: MOBILE_TORII_DROP_Y + restY,
+      });
+    });
+
+    const MOBILE_ROTULO_WIDTH_OUTER = 421;
+    const MOBILE_ROTULO_HEIGHT_OUTER = 116;
+    const MOBILE_ROTULO_DOWN_EXTRA_OUTER = 125;
+    const MOBILE_ROTULO_REST_X = (MOBILE_TORII_SHIFT_OUTER / MOBILE_ROTULO_WIDTH_OUTER) * 100;
+    const MOBILE_ROTULO_REST_Y =
+      ((MOBILE_TORII_DOWN_OUTER + MOBILE_ROTULO_DOWN_EXTRA_OUTER) / MOBILE_ROTULO_HEIGHT_OUTER) * 100;
+    gsap.set(".layer-rotulo", {
+      opacity: 0,
+      scale: MOBILE_TORII_SCALE,
+      transformOrigin: "50% 50%",
+      xPercent: MOBILE_ROTULO_REST_X,
+      yPercent: MOBILE_TORII_DROP_Y + MOBILE_ROTULO_REST_Y,
+    });
+
+    // la nube: desplazada 500 unidades outer respecto a su posición
+    // original (igual que el resto de piezas, su posición original
+    // queda fuera de la franja visible en móvil), un 25% más pequeña, y
+    // entrando ahora desde la derecha (antes desde la izquierda). Su
+    // ancho propio (outer) es 737, de ahí sale el % del desplazamiento.
+    const MOBILE_NUBE_WIDTH_OUTER = 737;
+    const MOBILE_NUBE_HEIGHT_OUTER = 240;
+    const MOBILE_NUBE_REST_X = (-500 / MOBILE_NUBE_WIDTH_OUTER) * 100;
+    const MOBILE_NUBE_REST_Y = (100 / MOBILE_NUBE_HEIGHT_OUTER) * 100;
+    const MOBILE_NUBE_ENTRANCE_X = 80; // desplazamiento extra de entrada (positivo = desde la derecha)
+    const MOBILE_NUBE_SCALE = 0.75; // 25% más pequeña
+    gsap.set(".layer-nube", {
+      opacity: 0,
+      scale: MOBILE_NUBE_SCALE * 0.85,
+      transformOrigin: "50% 50%",
+      xPercent: MOBILE_NUBE_REST_X + MOBILE_NUBE_ENTRANCE_X,
+      yPercent: MOBILE_NUBE_REST_Y,
+    });
+
+    // las ramas y las hojas de la sakura entran desde la izquierda, cada
+    // una a su propia velocidad (mismo planteamiento que en escritorio):
+    // arrancan juntas pero las hojas tardan más en llegar, así que se ve
+    // que una va más rápido que la otra en vez de moverse en bloque.
+    //
+    // en su posición original del dibujo quedan fuera de la franja
+    // vertical que se ve en móvil (el recorte "slice" solo muestra una
+    // franja centrada del lienzo ancho), así que hace falta correrlas
+    // 50 unidades hacia la derecha -igual que se hizo con la montaña-
+    // para que entren en esa franja. Como ramas y hojas tienen anchos
+    // de caja distintos, ese mismo desplazamiento en píxeles se expresa
+    // como un % distinto para cada una.
+    const MOBILE_SAKURA_X_SHIFT_OUTER = 600;
+    const MOBILE_SAKURA_RAMAS_WIDTH_OUTER = 1033;
+    const MOBILE_SAKURA_HOJAS_WIDTH_OUTER = 1116;
+    const MOBILE_SAKURA_RAMAS_REST_X =
+      (MOBILE_SAKURA_X_SHIFT_OUTER / MOBILE_SAKURA_RAMAS_WIDTH_OUTER) * 100;
+    const MOBILE_SAKURA_HOJAS_REST_X =
+      (MOBILE_SAKURA_X_SHIFT_OUTER / MOBILE_SAKURA_HOJAS_WIDTH_OUTER) * 100;
+    const MOBILE_SAKURA_ENTRANCE_X = -70; // desplazamiento extra de entrada, sumado a la posición de reposo
+    const MOBILE_SAKURA_SCALE = 0.7; // 30% más pequeño
+
+    gsap.set(".layer-sakura-ramas", {
+      opacity: 0,
+      scale: MOBILE_SAKURA_SCALE * 0.85,
+      transformOrigin: "50% 50%",
+      xPercent: MOBILE_SAKURA_RAMAS_REST_X + MOBILE_SAKURA_ENTRANCE_X,
+    });
+    gsap.set(".layer-sakura-hojas", {
+      opacity: 0,
+      scale: MOBILE_SAKURA_SCALE * 0.85,
+      transformOrigin: "50% 50%",
+      xPercent: MOBILE_SAKURA_HOJAS_REST_X + MOBILE_SAKURA_ENTRANCE_X,
+    });
+
+    const mobileTl = gsap.timeline({
+      scrollTrigger: {
+        trigger: sceneSection,
+        start: "top top",
+        end: "+=100%",
+        scrub: 1,
+        pin: true,
+      },
+    });
+
+    mobileTl.to(mobileEntranceTargets, {
+      opacity: 1,
+      scale: MOBILE_SCALE,
+      duration: MOBILE_REVEAL_DURATION,
+      ease: "power2.out",
+    }, 0);
+
+    // efecto de relleno del agua, igual que en escritorio: el rectángulo
+    // crece en altura desde 0 hasta su altura final -con la parte de
+    // arriba fija, ver LAKE_Y en la versión de escritorio- como si el
+    // agua fuera cubriendo el lago desde el fondo del río hacia delante
+    if (lagoAguaMobile) {
+      mobileTl.to(
+        lagoAguaMobile,
+        { attr: { height: MOBILE_LAKE_HEIGHT }, duration: 0.7, ease: "sine.inOut" },
+        0
+      );
+    }
+
+    // arco real (curva de Bézier cuadrática), igual que en escritorio:
+    // se calcula a mano cuadro a cuadro con un tween sobre un objeto
+    // proxy, en vez de sobre el propio elemento, para que sea una única
+    // curva suave (no dos tramos rectos encadenados)
+    const solElMobile = document.querySelector(".layer-sol");
+    const MOBILE_SOL_ARC_DURATION = MOBILE_REVEAL_DURATION * 1.4;
+    const solProgressMobile = { t: 0 };
+    mobileTl.to(
+      solProgressMobile,
+      {
+        t: 1,
+        duration: MOBILE_SOL_ARC_DURATION,
+        ease: "sine.inOut",
+        onUpdate: () => {
+          if (!solElMobile) return;
+          const t = solProgressMobile.t;
+          const inv = 1 - t;
+          const x =
+            inv * inv * MOBILE_SOL_START_X + 2 * inv * t * MOBILE_SOL_ARC_X + t * t * MOBILE_SOL_X;
+          const y =
+            inv * inv * MOBILE_SOL_START_Y + 2 * inv * t * MOBILE_SOL_ARC_Y + t * t * MOBILE_SOL_Y;
+          gsap.set(solElMobile, { xPercent: x, yPercent: y });
+        },
+      },
+      0
+    );
+    mobileTl.to(
+      ".layer-sol",
+      { opacity: 1, scale: MOBILE_SOL_SCALE, duration: MOBILE_SOL_ARC_DURATION, ease: "power1.out" },
+      0
+    );
+
+    mobileTl.to(
+      ".layer-nube",
+      {
+        opacity: 1,
+        scale: MOBILE_NUBE_SCALE,
+        xPercent: MOBILE_NUBE_REST_X,
+        yPercent: MOBILE_NUBE_REST_Y,
+        duration: MOBILE_REVEAL_DURATION,
+        ease: "power2.out",
+      },
+      0
+    );
+
+    // el torii cae pieza a pieza, de abajo arriba (primero la base,
+    // luego el cuerpo, el tejado el último), manteniendo fijo el
+    // desplazamiento horizontal ya colocado arriba -solo se anima la
+    // caída vertical-
+    mobileToriiPieces.forEach(({ selector, heightOuter, downExtraOuter, delay, duration }) => {
+      const restY = ((MOBILE_TORII_DOWN_OUTER + downExtraOuter) / heightOuter) * 100;
+      // opacity casi instantánea (0.05s) justo al empezar a caer, para
+      // que aparezca de golpe "cayendo" en vez de hacer un fundido lento
+      mobileTl.to(selector, { opacity: 1, duration: 0.05, ease: "none" }, delay);
+      mobileTl.to(selector, { yPercent: restY, duration, ease: "power2.in" }, delay);
+    });
+
+    // el rótulo cae justo después de la última pieza (el tejado), como
+    // una pieza más de la puerta
+    const mobileLastToriiPiece = mobileToriiPieces[mobileToriiPieces.length - 1];
+    mobileTl.to(
+      ".layer-rotulo",
+      { opacity: 1, duration: 0.05, ease: "none" },
+      mobileLastToriiPiece.delay + 0.1
+    );
+    mobileTl.to(
+      ".layer-rotulo",
+      { yPercent: MOBILE_ROTULO_REST_Y, duration: mobileLastToriiPiece.duration, ease: "power2.in" },
+      mobileLastToriiPiece.delay + 0.1
+    );
+
+    // ramas y hojas arrancan juntas (tiempo 0) pero las hojas llevan más
+    // duración -van un paso por detrás durante todo el trayecto y
+    // terminan "floreciendo" después de que la rama ya haya llegado-
+    const MOBILE_SAKURA_RAMAS_DURATION = MOBILE_REVEAL_DURATION;
+    const MOBILE_SAKURA_HOJAS_DURATION = MOBILE_REVEAL_DURATION * 1.8;
+
+    mobileTl.to(
+      ".layer-sakura-ramas",
+      {
+        opacity: 1,
+        scale: MOBILE_SAKURA_SCALE,
+        xPercent: MOBILE_SAKURA_RAMAS_REST_X,
+        duration: MOBILE_SAKURA_RAMAS_DURATION,
+        ease: "power2.out",
+      },
+      0
+    );
+    mobileTl.to(
+      ".layer-sakura-hojas",
+      {
+        opacity: 1,
+        scale: MOBILE_SAKURA_SCALE,
+        xPercent: MOBILE_SAKURA_HOJAS_REST_X,
+        duration: MOBILE_SAKURA_HOJAS_DURATION,
+        ease: "power2.out",
+      },
+      0
+    );
+
+    // los pájaros: mismo mecanismo que en escritorio -cada uno entra por
+    // separado, con su propio desplazamiento de entrada (izquierda o
+    // derecha), su propio retraso y duración, y un aleteo (vaivén
+    // vertical en forma de onda) calculado cuadro a cuadro con un tween
+    // sobre un objeto proxy en vez de sobre el propio elemento.
+    // pajaros-1 es el que queda más abajo en el dibujo original, y
+    // pajaros-2 el que queda más arriba (pajaros-3 se deja como está de
+    // momento); ambos necesitan un empujón fijo hacia la derecha,
+    // expresado en % de su propio ancho (112 y 101 unidades outer
+    // respectivamente) para que el desplazamiento en píxeles sea el
+    // pedido (100 y 150 unidades outer).
+    const mobileBirds = [
+      {
+        selector: ".layer-pajaros-1",
+        entranceX: -900,
+        restX: (100 / 112) * 100,
+        delay: 0,
+        duration: 0.4,
+        bobAmplitude: 45,
+        bobCycles: 2,
+      },
+      {
+        selector: ".layer-pajaros-2",
+        entranceX: 1100,
+        restX: ((150 - 200 - 150) / 101) * 100,
+        delay: 0.05,
+        duration: 0.3,
+        bobAmplitude: 60,
+        bobCycles: 3,
+      },
+      {
+        selector: ".layer-pajaros-3",
+        entranceX: -1400,
+        restX: 0,
+        delay: 0.02,
+        duration: 0.45,
+        bobAmplitude: 55,
+        bobCycles: 4,
+      },
+    ];
+
+    gsap.set(
+      mobileBirds.map((b) => b.selector),
+      { opacity: 0, scale: 0.85, transformOrigin: "50% 50%" }
+    );
+
+    mobileBirds.forEach(({ selector, entranceX, restX, delay, duration, bobAmplitude, bobCycles }) => {
+      const birdEl = document.querySelector(selector);
+      const birdProgress = { t: 0 };
+      mobileTl.to(
+        birdProgress,
+        {
+          t: 1,
+          duration,
+          ease: "power3.out",
+          onUpdate: () => {
+            if (!birdEl) return;
+            const t = birdProgress.t;
+            const x = restX + entranceX * (1 - t);
+            const y = Math.sin(t * bobCycles * Math.PI * 2) * bobAmplitude * (1 - t * 0.3);
+            gsap.set(birdEl, { xPercent: x, yPercent: y });
+          },
+        },
+        delay
+      );
+      mobileTl.to(selector, { opacity: 1, scale: 1, duration, ease: "power3.out" }, delay);
+    });
   });
 
   window.addEventListener("load", () => ScrollTrigger.refresh());
