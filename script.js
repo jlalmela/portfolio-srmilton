@@ -91,44 +91,96 @@ if (bulbViewer && window.THREE) {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     bulbViewer.appendChild(renderer.domElement);
 
-    // luz ambiente suave + un punto de luz cálido junto al cristal, para
-    // que el propio modelo proyecte algo de luz "encendida" a su alrededor
-    scene.add(new THREE.AmbientLight(0xfff4e0, 0.6));
-    const bulbLight = new THREE.PointLight(0xffdca8, 1.4, 60);
-    bulbLight.position.set(0, 8, 10);
-    scene.add(bulbLight);
+    // luz ambiente + una luz direccional suave para que el cristal
+    // transparente tenga algún reflejo y no se vea plano
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    const keyLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    keyLight.position.set(5, 10, 8);
+    scene.add(keyLight);
 
-    let bulbMesh = null;
+    // bulbGroup contiene el cristal + el filamento juntos, para que giren
+    // como una sola pieza. filLight es la luz cálida del filamento, que se
+    // guarda aparte para hacerla "respirar".
+    let bulbGroup = null;
+    let filLight = null;
+
     const loader = new THREE.GLTFLoader();
     loader.load(
       "assets/bombilla.glb",
       (gltf) => {
-        bulbMesh = gltf.scene;
-        bulbMesh.traverse((child) => {
+        bulbGroup = gltf.scene;
+
+        // 1) el CRISTAL: la carcasa exterior del modelo, hecha
+        // semitransparente para poder ver el filamento por dentro.
+        // depthWrite:false evita que el cristal "tape" el filamento que
+        // tiene detrás, y renderOrder lo dibuja después (por encima).
+        bulbGroup.traverse((child) => {
           if (child.isMesh) {
-            // el modelo viene de una malla muy reducida (decimada) para que
-            // cargue rápido; da igual si el .glb trae o no las normales
-            // correctas -calcularlas aquí directamente garantiza que la luz
-            // se refleje bien en la superficie sin depender de eso-
+            // el modelo viene de una malla muy reducida (decimada); calcular
+            // las normales aquí garantiza que la luz se refleje bien sin
+            // depender de si el .glb las trae correctas
             child.geometry.computeVertexNormals();
             child.material = new THREE.MeshStandardMaterial({
-              color: 0xfff2d0,
-              emissive: 0xffc978,
-              emissiveIntensity: 0.6,
-              roughness: 0.35,
-              metalness: 0.05,
+              color: 0xeaf2ff,
+              roughness: 0.12,
+              metalness: 0,
               transparent: true,
-              opacity: 0.92,
+              opacity: 0.2,
+              depthWrite: false,
               side: THREE.DoubleSide,
             });
+            child.renderOrder = 2;
           }
         });
-        // centrar el modelo en el visor (el .obj original venía con su
-        // propio origen descentrado)
-        const box = new THREE.Box3().setFromObject(bulbMesh);
+
+        // centrar el modelo (el .obj original venía descentrado) y medir su
+        // tamaño para colocar el filamento a escala, dentro de la parte
+        // alta del bulbo
+        const box = new THREE.Box3().setFromObject(bulbGroup);
         const center = box.getCenter(new THREE.Vector3());
-        bulbMesh.position.sub(center);
-        scene.add(bulbMesh);
+        const size = box.getSize(new THREE.Vector3());
+        bulbGroup.position.sub(center);
+        scene.add(bulbGroup);
+
+        // 2) el FILAMENTO: una espiral (helix) de tubo fino, dorada y
+        // luminosa (MeshBasicMaterial = no le afectan las sombras, brilla
+        // por sí misma), colocada en el interior alto del cristal.
+        const radius = size.x * 0.11;
+        const height = size.y * 0.15;
+        const yc = size.y * 0.11;
+        const turns = 4;
+        const segments = 140;
+        const pts = [];
+        for (let i = 0; i <= segments; i++) {
+          const a = (i / segments) * turns * Math.PI * 2;
+          const y = yc - height / 2 + (i / segments) * height;
+          pts.push(new THREE.Vector3(Math.cos(a) * radius, y, Math.sin(a) * radius));
+        }
+        const curve = new THREE.CatmullRomCurve3(pts);
+        const filament = new THREE.Mesh(
+          new THREE.TubeGeometry(curve, 220, size.x * 0.013, 8, false),
+          new THREE.MeshBasicMaterial({ color: 0xffcf7a })
+        );
+        filament.renderOrder = 1;
+        bulbGroup.add(filament);
+
+        // las dos "patas" rectas que en una bombilla real sujetan el
+        // filamento desde la base
+        [-radius, radius].forEach((lx) => {
+          const leg = new THREE.Mesh(
+            new THREE.CylinderGeometry(size.x * 0.013, size.x * 0.013, height * 1.5, 6),
+            new THREE.MeshBasicMaterial({ color: 0xffcf80 })
+          );
+          leg.position.set(lx, yc - height * 0.95, 0);
+          leg.renderOrder = 1;
+          bulbGroup.add(leg);
+        });
+
+        // luz cálida emitida desde el propio filamento, que ilumina el
+        // cristal desde dentro y tiñe su alrededor
+        filLight = new THREE.PointLight(0xffdca8, 2.4, 40);
+        filLight.position.set(0, yc, 0);
+        bulbGroup.add(filLight);
       },
       undefined,
       (err) => console.warn("No se pudo cargar bombilla.glb", err)
@@ -147,14 +199,11 @@ if (bulbViewer && window.THREE) {
     function animateBulb() {
       requestAnimationFrame(animateBulb);
       const t = clock.getElapsedTime();
-      if (bulbMesh) {
-        bulbMesh.rotation.y = t * 0.5; // giro lento y constante
-        bulbMesh.traverse((child) => {
-          if (child.isMesh) {
-            // el brillo "respira": sube y baja despacio en vez de quedar fijo
-            child.material.emissiveIntensity = 0.55 + Math.sin(t * 1.8) * 0.25;
-          }
-        });
+      if (bulbGroup) {
+        bulbGroup.rotation.y = t * 0.5; // giro lento y constante
+        // el filamento "respira": su luz sube y baja despacio, como el
+        // titileo suave de una bombilla encendida
+        if (filLight) filLight.intensity = 2.1 + Math.sin(t * 3) * 0.5;
       }
       renderer.render(scene, camera);
     }
@@ -266,32 +315,14 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
   // cómo colocarlas -por eso el bloque mobile empieza vacío.
   const mm = gsap.matchMedia();
 
-  mm.add("(min-width: 769px)", () => {
-  // profundidad de cada capa (0 = muy lejos, 1 = primer plano):
-  // determina cuánto se desplaza respecto al scroll (parallax)
-  const layers = [
-    { selector: ".layer-sol", depth: 0.15 },
-    { selector: ".layer-nube", depth: 0.2 },
-    { selector: ".layer-pajaros-1", depth: 0.28 },
-    { selector: ".layer-pajaros-2", depth: 0.32 },
-    { selector: ".layer-pajaros-3", depth: 0.36 },
-    { selector: ".layer-montanas", depth: 0.4 },
-    { selector: ".layer-suelo", depth: 0.55 },
-    { selector: ".layer-torii-tejado", depth: 0.7 },
-    { selector: ".layer-torii-cuerpo", depth: 0.7 },
-    { selector: ".layer-torii-base", depth: 0.7 },
-    { selector: ".layer-sakura-hojas", depth: 0.8 },
-    { selector: ".layer-sakura-ramas", depth: 0.8 },
-  ];
-
   // --- Helpers compartidos entre escritorio y móvil ---------------------
   // El arco del sol (curva de Bézier cuadrática) y el aleteo de los
   // pájaros (vaivén senoidal) se calculan a mano cuadro a cuadro con un
   // tween sobre un objeto proxy, en vez de sobre el propio elemento, para
   // que sea una única curva/onda suave (no tramos rectos encadenados).
-  // Ambas versiones (escritorio y móvil) usan exactamente la misma
-  // fórmula sobre coordenadas distintas, así que se extraen aquí una
-  // sola vez en lugar de duplicar el cálculo en cada bloque.
+  // Ambas versiones (escritorio y móvil) usan exactamente la misma fórmula
+  // sobre coordenadas distintas, así que se definen aquí -FUERA de los dos
+  // bloques mm.add- para que las pueda usar tanto escritorio como móvil.
   function addArcMotion(timeline, el, { startX, startY, arcX, arcY, endX, endY, duration, time, ease = "sine.inOut" }) {
     const progress = { t: 0 };
     timeline.to(
@@ -332,6 +363,24 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
       delay
     );
   }
+
+  mm.add("(min-width: 769px)", () => {
+  // profundidad de cada capa (0 = muy lejos, 1 = primer plano):
+  // determina cuánto se desplaza respecto al scroll (parallax)
+  const layers = [
+    { selector: ".layer-sol", depth: 0.15 },
+    { selector: ".layer-nube", depth: 0.2 },
+    { selector: ".layer-pajaros-1", depth: 0.28 },
+    { selector: ".layer-pajaros-2", depth: 0.32 },
+    { selector: ".layer-pajaros-3", depth: 0.36 },
+    { selector: ".layer-montanas", depth: 0.4 },
+    { selector: ".layer-suelo", depth: 0.55 },
+    { selector: ".layer-torii-tejado", depth: 0.7 },
+    { selector: ".layer-torii-cuerpo", depth: 0.7 },
+    { selector: ".layer-torii-base", depth: 0.7 },
+    { selector: ".layer-sakura-hojas", depth: 0.8 },
+    { selector: ".layer-sakura-ramas", depth: 0.8 },
+  ];
 
   // el rótulo "Sr Milton" no lleva parallax propio ni fundido: cae desde
   // arriba igual que las piezas del torii (ver más abajo, dentro del
