@@ -564,7 +564,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
     // el tamaño final), disparado por el scroll. Se aplica igual a la
     // montaña y al agua, para que entren juntas como una sola pieza.
     const MOBILE_REVEAL_DURATION = 0.6;
-    const mobileEntranceTargets = [".layer-montanas", lagoAguaMobile].filter(Boolean);
+    const mobileEntranceTargets = [".layer-montanas"];
 
     gsap.set(".layer-montanas", {
       opacity: 0,
@@ -574,9 +574,17 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
       yPercent: 0,
     });
     if (lagoAguaMobile) {
+      // OJO: el agua NO comparte la animación de "scale" de la montaña
+      // (antes sí, dentro de mobileEntranceTargets). Escalar con CSS un
+      // rect con clip-path A LA VEZ que se anima su altura (el relleno)
+      // hace que, con timings/eases ligeramente distintos entre ambos
+      // tweens, el rectángulo y su máscara de recorte se desincronicen
+      // -por eso el agua "se movía de su sitio" al terminar-. Con la
+      // escala fija desde el principio (nunca se anima) y solo opacidad
+      // + altura cambiando, rect y clip-path quedan siempre acoplados.
       gsap.set(lagoAguaMobile, {
         opacity: 0,
-        scale: MOBILE_SCALE * 0.85,
+        scale: MOBILE_SCALE,
         transformOrigin: "50% 50%",
         xPercent: MOBILE_LAGO_X,
         yPercent: MOBILE_LAGO_Y,
@@ -740,6 +748,10 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
         { attr: { height: MOBILE_LAKE_HEIGHT }, duration: 0.7, ease: "sine.inOut" },
         0
       );
+      // opacidad del agua por separado (ya no comparte tween de escala
+      // con la montaña), con la misma duración que el relleno para que
+      // ambas terminen exactamente a la vez
+      mobileTl.to(lagoAguaMobile, { opacity: 1, duration: 0.7, ease: "sine.inOut" }, 0);
     }
 
     // arco real (curva de Bézier cuadrática), igual que en escritorio:
