@@ -21,6 +21,44 @@ if (logoWrap) {
 }
 
 /* =========================================================
+   TEXTO "enjoy" ESCRITO A MANO
+   Efecto de trazo completándose de izquierda a derecha, como si se
+   estuviera escribiendo en ese momento: el texto arranca totalmente
+   recortado (clip-path) y se va revelando poco a poco. No depende del
+   scroll -arranca solo, nada más cargar la página-, con una pequeña
+   pausa inicial (delay) para que no coincida con el primer parpadeo
+   de carga de la página.
+   ========================================================= */
+const enjoyText = document.querySelector(".enjoy-text");
+if (enjoyText && window.gsap) {
+  gsap.to(enjoyText, {
+    clipPath: "inset(0 0% 0 0)",
+    duration: 4,
+    delay: 0.4,
+    ease: "power1.inOut",
+  });
+
+  // en cuanto se empieza a hacer scroll, se desvanece despacio (no de
+  // golpe): se engancha al mismo disparador que la escena (misma
+  // sección, mismo punto de partida "top top"), pero con muy poco
+  // recorrido de scroll -apenas hace falta bajar un poco para que
+  // desaparezca del todo-
+  if (window.ScrollTrigger) {
+    gsap.registerPlugin(ScrollTrigger);
+    gsap.to(enjoyText, {
+      opacity: 0,
+      ease: "power1.out",
+      scrollTrigger: {
+        trigger: "#scene-section",
+        start: "top top",
+        end: "+=15%",
+        scrub: 1,
+      },
+    });
+  }
+}
+
+/* =========================================================
    MENÚ HAMBURGUESA
    Se abre al pasar el ratón (como en el diseño original) y
    también con un click, para que funcione igual en pantallas
@@ -773,6 +811,17 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
       ".layer-rotulo",
       { yPercent: MOBILE_ROTULO_REST_Y, duration: mobileLastToriiPiece.duration, ease: "power2.in" },
       mobileLastToriiPiece.delay + 0.1
+    );
+
+    // una vez el rótulo queda fijado en su sitio (sobre la montaña
+    // gris), el rojo desentona -así que en cuanto termina de caer,
+    // cambia a blanco. Se anima el "fill" directamente en línea (más
+    // prioridad que la clase .rotulo-cls-1 de los <style> internos del
+    // propio SVG), sobre todos los trazos del rótulo.
+    mobileTl.to(
+      ".layer-rotulo .rotulo-cls-1",
+      { fill: "#ffffff", duration: 0.4, ease: "power1.out" },
+      mobileLastToriiPiece.delay + 0.1 + mobileLastToriiPiece.duration
     );
 
     // ramas y hojas arrancan juntas (tiempo 0) pero las hojas llevan más

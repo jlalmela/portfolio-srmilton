@@ -203,6 +203,30 @@ a:hover {
   height: 100%;
 }
 
+/* "enjoy" escrito a mano, centrado, apenas visible nada más abrir la
+   página: mismo tono del fondo (oklch(98% 0.006 80)) pero algo más
+   oscuro, para que se note sutilmente sin llamar la atención sobre el
+   resto de la escena */
+.enjoy-text {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  font-family: "Dancing Script", cursive;
+  font-weight: 700;
+  font-size: clamp(1.8rem, 5vw, 4rem);
+  color: oklch(90% 0.01 80);
+  pointer-events: none;
+  user-select: none;
+  /* arranca completamente oculto (recortado por la derecha); el
+     "trazo" se revela de izquierda a derecha con GSAP, como si se
+     estuviera escribiendo a mano (ver script.js) */
+  clip-path: inset(0 100% 0 0);
+}
+
 .scene-svg svg {
   display: block;
   width: 100%;
