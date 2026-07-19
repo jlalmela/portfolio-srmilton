@@ -83,8 +83,11 @@ if (bulbViewer && window.THREE) {
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
     // el modelo se recentra en el origen más abajo (bulbMesh.position.sub(center)),
-    // así que la cámara tiene que mirar al origen, no a la altura original del .obj
-    camera.position.set(0, 4, 32);
+    // así que la cámara tiene que mirar al origen, no a la altura original del .obj.
+    // z=32 dejaba la bombilla demasiado cerca -al ser más alta que ancha,
+    // se cortaba por arriba y por abajo dentro del visor cuadrado-; con
+    // z=46 entra completa, con margen arriba y abajo.
+    camera.position.set(0, 0, 46);
     camera.lookAt(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
