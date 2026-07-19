@@ -748,6 +748,24 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
     const MOBILE_REVEAL_DURATION = 0.6;
     const mobileEntranceTargets = [".layer-montanas"];
 
+    // cascada por grupos, igual que en la versión de escritorio (donde el
+    // desfase STEP=0.12 entre capas es lo que da esa sensación de "una
+    // detrás de otra"): antes, en móvil, casi todas las figuras arrancaban
+    // juntas en el instante 0 -montaña, sol, nube, sakura y los tres
+    // pájaros a la vez-, así que no se notaba ninguna cascada real, solo
+    // el torii caía escalonado. Con MOBILE_STEP cada grupo empieza un poco
+    // después que el anterior, manteniendo intactas las duraciones y los
+    // desfases internos que ya había dentro de cada grupo (p.ej. las
+    // hojas de la sakura siguen tardando más que las ramas, y las piezas
+    // del torii caen igual de escalonadas entre sí).
+    const MOBILE_STEP = 0.13;
+    const MOBILE_MONTANA_START = 0;
+    const MOBILE_SOL_START = MOBILE_STEP;
+    const MOBILE_NUBE_START = MOBILE_STEP * 2;
+    const MOBILE_SAKURA_START = MOBILE_STEP * 3;
+    const MOBILE_PAJAROS_START = MOBILE_STEP * 4;
+    const MOBILE_TORII_START = MOBILE_STEP * 5;
+
     gsap.set(".layer-montanas", {
       opacity: 0,
       scale: MOBILE_SCALE * 0.85,
@@ -814,9 +832,9 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
     // el tejado necesitaba además otros 30 puntos de más hacia abajo
     // que el resto de piezas -de ahí el downExtraOuter individual-
     const mobileToriiPieces = [
-      { selector: ".layer-torii-base", widthOuter: 397, heightOuter: 114, downExtraOuter: 0, delay: 0, duration: 0.75 },
-      { selector: ".layer-torii-cuerpo", widthOuter: 768, heightOuter: 691, downExtraOuter: 0, delay: 0.3, duration: 0.85 },
-      { selector: ".layer-torii-tejado", widthOuter: 977, heightOuter: 218, downExtraOuter: 105, delay: 0.6, duration: 0.7 },
+      { selector: ".layer-torii-base", widthOuter: 397, heightOuter: 114, downExtraOuter: 0, delay: MOBILE_TORII_START + 0, duration: 0.75 },
+      { selector: ".layer-torii-cuerpo", widthOuter: 768, heightOuter: 691, downExtraOuter: 0, delay: MOBILE_TORII_START + 0.3, duration: 0.85 },
+      { selector: ".layer-torii-tejado", widthOuter: 977, heightOuter: 218, downExtraOuter: 105, delay: MOBILE_TORII_START + 0.6, duration: 0.7 },
     ];
     // restX/restY de cada pieza se calculan una sola vez aquí y se
     // guardan en el propio objeto, para no repetir la misma cuenta más
@@ -921,7 +939,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
       scale: MOBILE_SCALE,
       duration: MOBILE_REVEAL_DURATION,
       ease: "power2.out",
-    }, 0);
+    }, MOBILE_MONTANA_START);
 
     // efecto de relleno del agua, igual que en escritorio: el rectángulo
     // crece en altura desde 0 hasta su altura final -con la parte de
@@ -931,12 +949,12 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
       mobileTl.to(
         lagoAguaMobile,
         { attr: { height: MOBILE_LAKE_HEIGHT }, duration: 0.7, ease: "sine.inOut" },
-        0
+        MOBILE_MONTANA_START
       );
       // opacidad del agua por separado (ya no comparte tween de escala
       // con la montaña), con la misma duración que el relleno para que
       // ambas terminen exactamente a la vez
-      mobileTl.to(lagoAguaMobile, { opacity: 1, duration: 0.7, ease: "sine.inOut" }, 0);
+      mobileTl.to(lagoAguaMobile, { opacity: 1, duration: 0.7, ease: "sine.inOut" }, MOBILE_MONTANA_START);
     }
 
     // arco real (curva de Bézier cuadrática), igual que en escritorio:
@@ -953,12 +971,12 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
       endX: MOBILE_SOL_X,
       endY: MOBILE_SOL_Y,
       duration: MOBILE_SOL_ARC_DURATION,
-      time: 0,
+      time: MOBILE_SOL_START,
     });
     mobileTl.to(
       ".layer-sol",
       { opacity: 1, scale: MOBILE_SOL_SCALE, duration: MOBILE_SOL_ARC_DURATION, ease: "power1.out" },
-      0
+      MOBILE_SOL_START
     );
 
     mobileTl.to(
@@ -971,7 +989,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
         duration: MOBILE_REVEAL_DURATION,
         ease: "power2.out",
       },
-      0
+      MOBILE_NUBE_START
     );
 
     // el torii cae pieza a pieza, de abajo arriba (primero la base,
@@ -1010,9 +1028,10 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
       mobileLastToriiPiece.delay + 0.1 + mobileLastToriiPiece.duration
     );
 
-    // ramas y hojas arrancan juntas (tiempo 0) pero las hojas llevan más
-    // duración -van un paso por detrás durante todo el trayecto y
-    // terminan "floreciendo" después de que la rama ya haya llegado-
+    // ramas y hojas arrancan juntas (en el instante de su grupo,
+    // MOBILE_SAKURA_START) pero las hojas llevan más duración -van un
+    // paso por detrás durante todo el trayecto y terminan "floreciendo"
+    // después de que la rama ya haya llegado-
     const MOBILE_SAKURA_RAMAS_DURATION = MOBILE_REVEAL_DURATION;
     const MOBILE_SAKURA_HOJAS_DURATION = MOBILE_REVEAL_DURATION * 1.8;
 
@@ -1025,7 +1044,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
         duration: MOBILE_SAKURA_RAMAS_DURATION,
         ease: "power2.out",
       },
-      0
+      MOBILE_SAKURA_START
     );
     mobileTl.to(
       ".layer-sakura-hojas",
@@ -1036,7 +1055,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
         duration: MOBILE_SAKURA_HOJAS_DURATION,
         ease: "power2.out",
       },
-      0
+      MOBILE_SAKURA_START
     );
 
     // los pájaros: mismo mecanismo que en escritorio -cada uno entra por
@@ -1055,7 +1074,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
         selector: ".layer-pajaros-1",
         entranceX: -900,
         restX: (100 / 112) * 100,
-        delay: 0,
+        delay: MOBILE_PAJAROS_START + 0,
         duration: 0.4,
         bobAmplitude: 45,
         bobCycles: 2,
@@ -1064,7 +1083,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
         selector: ".layer-pajaros-2",
         entranceX: 1100,
         restX: ((150 - 200 - 150) / 101) * 100,
-        delay: 0.05,
+        delay: MOBILE_PAJAROS_START + 0.05,
         duration: 0.3,
         bobAmplitude: 60,
         bobCycles: 3,
@@ -1073,7 +1092,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
         selector: ".layer-pajaros-3",
         entranceX: -1400,
         restX: 0,
-        delay: 0.02,
+        delay: MOBILE_PAJAROS_START + 0.02,
         duration: 0.45,
         bobAmplitude: 55,
         bobCycles: 4,

@@ -250,14 +250,26 @@ a:hover {
 }
 
 /* =========================================================
-   BOMBILLA 3D (página Portfolio): pequeño visor Three.js con el
-   modelo importado (assets/bombilla.glb), girando despacio y con un
+   PÁGINA PORTFOLIO: pantalla completa en negro, con la bombilla 3D
+   como única protagonista, centrada en el medio.
+   ========================================================= */
+.portfolio-hero {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =========================================================
+   BOMBILLA 3D (página Portfolio): visor Three.js con el modelo
+   importado (assets/bombilla.glb), girando despacio y con un
    resplandor cálido detrás que simula estar encendida.
    ========================================================= */
 .bulb-viewer {
-  width: clamp(160px, 30vw, 260px);
+  width: clamp(280px, 42vw, 520px);
   aspect-ratio: 1 / 1;
-  margin: 0 auto 2rem;
   position: relative;
 }
 
