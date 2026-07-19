@@ -69,81 +69,98 @@ if (enjoyText && window.gsap) {
    el visor (solo existe en portfolio.html).
    ========================================================= */
 const bulbViewer = document.getElementById("bulb-viewer");
+// OJO: crear un renderer WebGL puede fallar (tarjeta gráfica bloqueada,
+// aceleración por hardware desactivada, demasiados contextos abiertos a
+// la vez...) y ese fallo lanza una excepción real, no solo un aviso. Como
+// este archivo se comparte con el resto de páginas (menú, escena del
+// paisaje), un fallo aquí sin capturar cortaría también esas partes del
+// script en cualquier página que vaya después de este bloque. Por eso
+// todo el intento de crear el visor 3D va envuelto en un try/catch: si
+// falla, sencillamente no se muestra la bombilla (queda el resplandor de
+// fondo en CSS) y el resto de la página sigue funcionando con normalidad.
 if (bulbViewer && window.THREE) {
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
-  // el modelo se recentra en el origen más abajo (bulbMesh.position.sub(center)),
-  // así que la cámara tiene que mirar al origen, no a la altura original del .obj
-  camera.position.set(0, 4, 32);
-  camera.lookAt(0, 0, 0);
+  try {
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+    // el modelo se recentra en el origen más abajo (bulbMesh.position.sub(center)),
+    // así que la cámara tiene que mirar al origen, no a la altura original del .obj
+    camera.position.set(0, 4, 32);
+    camera.lookAt(0, 0, 0);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  bulbViewer.appendChild(renderer.domElement);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    bulbViewer.appendChild(renderer.domElement);
 
-  // luz ambiente suave + un punto de luz cálido junto al cristal, para
-  // que el propio modelo proyecte algo de luz "encendida" a su alrededor
-  scene.add(new THREE.AmbientLight(0xfff4e0, 0.6));
-  const bulbLight = new THREE.PointLight(0xffdca8, 1.4, 60);
-  bulbLight.position.set(0, 8, 10);
-  scene.add(bulbLight);
+    // luz ambiente suave + un punto de luz cálido junto al cristal, para
+    // que el propio modelo proyecte algo de luz "encendida" a su alrededor
+    scene.add(new THREE.AmbientLight(0xfff4e0, 0.6));
+    const bulbLight = new THREE.PointLight(0xffdca8, 1.4, 60);
+    bulbLight.position.set(0, 8, 10);
+    scene.add(bulbLight);
 
-  let bulbMesh = null;
-  const loader = new THREE.GLTFLoader();
-  loader.load(
-    "assets/bombilla.glb",
-    (gltf) => {
-      bulbMesh = gltf.scene;
-      bulbMesh.traverse((child) => {
-        if (child.isMesh) {
-          child.material = new THREE.MeshStandardMaterial({
-            color: 0xfff2d0,
-            emissive: 0xffc978,
-            emissiveIntensity: 0.6,
-            roughness: 0.35,
-            metalness: 0.05,
-            transparent: true,
-            opacity: 0.92,
-            side: THREE.DoubleSide,
-          });
-        }
-      });
-      // centrar el modelo en el visor (el .obj original venía con su
-      // propio origen descentrado)
-      const box = new THREE.Box3().setFromObject(bulbMesh);
-      const center = box.getCenter(new THREE.Vector3());
-      bulbMesh.position.sub(center);
-      scene.add(bulbMesh);
-    },
-    undefined,
-    (err) => console.warn("No se pudo cargar bombilla.glb", err)
-  );
+    let bulbMesh = null;
+    const loader = new THREE.GLTFLoader();
+    loader.load(
+      "assets/bombilla.glb",
+      (gltf) => {
+        bulbMesh = gltf.scene;
+        bulbMesh.traverse((child) => {
+          if (child.isMesh) {
+            child.material = new THREE.MeshStandardMaterial({
+              color: 0xfff2d0,
+              emissive: 0xffc978,
+              emissiveIntensity: 0.6,
+              roughness: 0.35,
+              metalness: 0.05,
+              transparent: true,
+              opacity: 0.92,
+              side: THREE.DoubleSide,
+            });
+          }
+        });
+        // centrar el modelo en el visor (el .obj original venía con su
+        // propio origen descentrado)
+        const box = new THREE.Box3().setFromObject(bulbMesh);
+        const center = box.getCenter(new THREE.Vector3());
+        bulbMesh.position.sub(center);
+        scene.add(bulbMesh);
+      },
+      undefined,
+      (err) => console.warn("No se pudo cargar bombilla.glb", err)
+    );
 
-  function resizeBulbViewer() {
-    const size = bulbViewer.clientWidth || 200;
-    renderer.setSize(size, size, false);
-    camera.aspect = 1;
-    camera.updateProjectionMatrix();
-  }
-  resizeBulbViewer();
-  window.addEventListener("resize", resizeBulbViewer);
-
-  const clock = new THREE.Clock();
-  function animateBulb() {
-    requestAnimationFrame(animateBulb);
-    const t = clock.getElapsedTime();
-    if (bulbMesh) {
-      bulbMesh.rotation.y = t * 0.5; // giro lento y constante
-      bulbMesh.traverse((child) => {
-        if (child.isMesh) {
-          // el brillo "respira": sube y baja despacio en vez de quedar fijo
-          child.material.emissiveIntensity = 0.55 + Math.sin(t * 1.8) * 0.25;
-        }
-      });
+    function resizeBulbViewer() {
+      const size = bulbViewer.clientWidth || 200;
+      renderer.setSize(size, size, false);
+      camera.aspect = 1;
+      camera.updateProjectionMatrix();
     }
-    renderer.render(scene, camera);
+    resizeBulbViewer();
+    window.addEventListener("resize", resizeBulbViewer);
+
+    const clock = new THREE.Clock();
+    function animateBulb() {
+      requestAnimationFrame(animateBulb);
+      const t = clock.getElapsedTime();
+      if (bulbMesh) {
+        bulbMesh.rotation.y = t * 0.5; // giro lento y constante
+        bulbMesh.traverse((child) => {
+          if (child.isMesh) {
+            // el brillo "respira": sube y baja despacio en vez de quedar fijo
+            child.material.emissiveIntensity = 0.55 + Math.sin(t * 1.8) * 0.25;
+          }
+        });
+      }
+      renderer.render(scene, camera);
+    }
+    animateBulb();
+  } catch (err) {
+    // sin WebGL disponible (tarjeta gráfica bloqueada, navegador con la
+    // aceleración por hardware desactivada, etc.) no se puede dibujar la
+    // bombilla en 3D; se deja solo el resplandor de fondo en CSS y el
+    // resto de la página sigue funcionando con normalidad
+    console.warn("No se pudo iniciar el visor 3D de la bombilla (WebGL no disponible)", err);
   }
-  animateBulb();
 }
 
 /* =========================================================
