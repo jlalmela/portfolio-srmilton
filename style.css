@@ -297,6 +297,62 @@ a:hover {
   height: 100%;
 }
 
+/* =========================================================
+   VÍDEO CON SCROLL-SCRUBBING (página Sobre mí, PRUEBA): sección fija
+   en negro con un canvas donde se dibuja, fotograma a fotograma, la
+   secuencia de imágenes extraída del vídeo de prueba, avanzando o
+   retrocediendo según la posición del scroll (ver script.js).
+   ========================================================= */
+.scroll-video-section {
+  position: relative;
+  height: 100vh;
+  height: 100dvh;
+  background: #000;
+  overflow: hidden;
+}
+
+.scroll-video-section canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.scroll-video-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: #fff;
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  opacity: 1;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.scroll-video-loading.is-hidden {
+  opacity: 0;
+}
+
+.scroll-video-tag {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  color: oklch(90% 0.01 80 / 70%);
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-align: center;
+  pointer-events: none;
+}
+
 .content-section h2 {
   font-family: "Source Serif 4", "Georgia", serif;
   font-size: clamp(1.8rem, 4vw, 2.6rem);

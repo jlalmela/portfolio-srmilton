@@ -1,1 +1,10 @@
 .DS_Store
+
+# vídeos de origen (demasiado pesados para el repo; no van en la web
+# directamente, solo la secuencia de fotogramas extraída de ellos)
+video.mp4
+video-h264-web.mp4
+
+# archivos de proyecto de Blender (fuente, no necesarios para la web)
+assets/bombilla.blend
+assets/bombilla.blend1

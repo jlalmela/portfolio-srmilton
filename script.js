@@ -1116,3 +1116,86 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
 
   window.addEventListener("load", () => ScrollTrigger.refresh());
 }
+
+// =========================================================
+// VÍDEO CON SCROLL-SCRUBBING (página Sobre mí, PRUEBA): en vez de
+// reproducir un <video>, se dibuja en un <canvas> el fotograma que
+// corresponde a la posición del scroll. Los fotogramas son una
+// secuencia de imágenes (assets/sobre-mi-frames/) extraída de un
+// vídeo de prueba con ffmpeg — NO es el vídeo definitivo, solo sirve
+// para validar el efecto antes de renderizar el recorrido de cámara
+// real en Twinmotion (ver Guia-video-scroll-Twinmotion.docx).
+// =========================================================
+const scrollVideoSection = document.getElementById("scroll-video-section");
+if (scrollVideoSection && window.gsap && window.ScrollTrigger) {
+  gsap.registerPlugin(ScrollTrigger);
+
+  const canvas = document.getElementById("scroll-video-canvas");
+  const loadingEl = document.getElementById("scroll-video-loading");
+  const ctx = canvas.getContext("2d");
+
+  const FRAME_COUNT = 100;
+  const framePath = (n) => `assets/sobre-mi-frames/frame_${String(n).padStart(3, "0")}.jpg`;
+
+  const images = [];
+  let loadedCount = 0;
+  let currentFrame = 0;
+
+  function drawFrame(index) {
+    const img = images[index];
+    if (!img || !img.complete || !img.naturalWidth) return;
+    const cw = canvas.width;
+    const ch = canvas.height;
+    const iw = img.naturalWidth;
+    const ih = img.naturalHeight;
+    // "cover": escala la imagen para llenar el canvas recortando el
+    // sobrante, igual que background-size: cover, para que no se
+    // deforme al cambiar el tamaño de ventana.
+    const scale = Math.max(cw / iw, ch / ih);
+    const w = iw * scale;
+    const h = ih * scale;
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.drawImage(img, (cw - w) / 2, (ch - h) / 2, w, h);
+  }
+
+  function resizeCanvas() {
+    canvas.width = scrollVideoSection.clientWidth;
+    canvas.height = scrollVideoSection.clientHeight;
+    drawFrame(currentFrame);
+  }
+
+  // precarga de todos los fotogramas antes de activar el scroll, para
+  // que no se vea el canvas en blanco al llegar a la sección
+  for (let n = 1; n <= FRAME_COUNT; n++) {
+    const img = new Image();
+    img.src = framePath(n);
+    img.onload = () => {
+      loadedCount++;
+      if (n === 1) {
+        resizeCanvas();
+      }
+      if (loadedCount === FRAME_COUNT && loadingEl) {
+        loadingEl.classList.add("is-hidden");
+      }
+    };
+    images.push(img);
+  }
+
+  window.addEventListener("resize", resizeCanvas);
+  resizeCanvas();
+
+  ScrollTrigger.create({
+    trigger: scrollVideoSection,
+    start: "top top",
+    end: "+=150%",
+    pin: true,
+    scrub: 0.5,
+    onUpdate: (self) => {
+      const idx = Math.min(FRAME_COUNT - 1, Math.round(self.progress * (FRAME_COUNT - 1)));
+      if (idx !== currentFrame) {
+        currentFrame = idx;
+        drawFrame(idx);
+      }
+    },
+  });
+}

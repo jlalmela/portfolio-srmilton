@@ -24,11 +24,23 @@
 </header>
 
 <main>
+  <!-- Prueba de efecto scroll-scrubbing: secuencia de fotogramas extraída
+       de un vídeo de prueba (video-h264-web.mp4), NO es el vídeo definitivo.
+       Sirve para validar el efecto antes de renderizar el recorrido de
+       cámara real en Twinmotion (ver Guia-video-scroll-Twinmotion.docx). -->
+  <section class="scroll-video-section" id="scroll-video-section">
+    <canvas id="scroll-video-canvas"></canvas>
+    <p class="scroll-video-loading" id="scroll-video-loading">Cargando vídeo de prueba…</p>
+    <p class="scroll-video-tag">Prueba de efecto — no es el vídeo definitivo</p>
+  </section>
+
   <section class="content-section">
     <p>Aquí va la presentación de Sr Milton: quién es, a qué se dedica y qué le hace distinto. Página lista para rellenar con el contenido definitivo.</p>
   </section>
 </main>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
