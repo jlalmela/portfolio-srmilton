@@ -1189,7 +1189,9 @@ if (scrollVideoSection && window.gsap && window.ScrollTrigger) {
     start: "top top",
     end: "+=150%",
     pin: true,
-    scrub: 0.5,
+    // scrub más alto = más "inercia": el progreso persigue al scroll
+    // con un pequeño retardo suavizado, en vez de calcarlo al milímetro
+    scrub: 1.2,
     onUpdate: (self) => {
       const idx = Math.min(FRAME_COUNT - 1, Math.round(self.progress * (FRAME_COUNT - 1)));
       if (idx !== currentFrame) {
