@@ -310,6 +310,15 @@ const sceneSection = document.getElementById("scene-section");
 if (sceneSection && window.gsap && window.ScrollTrigger) {
   gsap.registerPlugin(ScrollTrigger);
 
+  // Safari en iOS/iPadOS mueve la barra de direcciones al hacer scroll,
+  // lo que cambia el alto real del viewport en tiempo real y confunde el
+  // cálculo del "pin" de ScrollTrigger (la sección fija puede quedarse
+  // atascada o con saltos). normalizeScroll delega el scroll a un único
+  // listener controlado por GSAP en vez del nativo del navegador,
+  // evitando ese conflicto. Recomendado oficialmente por GSAP para
+  // secciones pineadas en móvil/tablet.
+  ScrollTrigger.normalizeScroll(true);
+
   // gsap.matchMedia() separa por completo el comportamiento en escritorio
   // del de móvil: en escritorio se mantiene tal cual la composición y
   // animación actuales (nada cambia); en móvil arrancamos desde cero una
