@@ -319,6 +319,31 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
   // secciones pineadas en móvil/tablet.
   ScrollTrigger.normalizeScroll(true);
 
+  // El SVG del paisaje tiene un viewBox panorámico (3125x2084, pensado
+  // para pantallas anchas de escritorio) con preserveAspectRatio="...
+  // slice": esto hace que el SVG siempre RELLENE el contenedor recortando
+  // lo que sobre por los lados. En pantallas muy verticales -iPad en
+  // vertical, móviles- eso recorta demasiado y deja fuera elementos como
+  // el torii o el texto "Sr Milton" (justo lo que se ve mal en capturas
+  // de iPad). Aquí comprobamos la proporción real del contenedor y, si es
+  // más vertical que el propio viewBox, cambiamos a "meet" (se ve la
+  // escena entera, con un pequeño margen del color de fondo arriba/abajo)
+  // en vez de "slice" (rellena pero recorta los lados).
+  const sceneSvgEl = sceneSection.querySelector("svg");
+  if (sceneSvgEl) {
+    const viewBoxRatio = 3125 / 2084;
+    const updateSvgFit = () => {
+      const containerRatio = sceneSection.clientWidth / sceneSection.clientHeight;
+      sceneSvgEl.setAttribute(
+        "preserveAspectRatio",
+        containerRatio < viewBoxRatio ? "xMidYMid meet" : "xMidYMid slice"
+      );
+    };
+    updateSvgFit();
+    window.addEventListener("resize", updateSvgFit);
+    window.addEventListener("orientationchange", updateSvgFit);
+  }
+
   // gsap.matchMedia() separa por completo el comportamiento en escritorio
   // del de móvil: en escritorio se mantiene tal cual la composición y
   // animación actuales (nada cambia); en móvil arrancamos desde cero una
