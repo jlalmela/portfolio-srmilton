@@ -319,30 +319,15 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
   // secciones pineadas en móvil/tablet.
   ScrollTrigger.normalizeScroll(true);
 
-  // El SVG del paisaje tiene un viewBox panorámico (3125x2084, pensado
-  // para pantallas anchas de escritorio) con preserveAspectRatio="...
-  // slice": esto hace que el SVG siempre RELLENE el contenedor recortando
-  // lo que sobre por los lados. En pantallas muy verticales -iPad en
-  // vertical, móviles- eso recorta demasiado y deja fuera elementos como
-  // el torii o el texto "Sr Milton" (justo lo que se ve mal en capturas
-  // de iPad). Aquí comprobamos la proporción real del contenedor y, si es
-  // más vertical que el propio viewBox, cambiamos a "meet" (se ve la
-  // escena entera, con un pequeño margen del color de fondo arriba/abajo)
-  // en vez de "slice" (rellena pero recorta los lados).
-  const sceneSvgEl = sceneSection.querySelector("svg");
-  if (sceneSvgEl) {
-    const viewBoxRatio = 3125 / 2084;
-    const updateSvgFit = () => {
-      const containerRatio = sceneSection.clientWidth / sceneSection.clientHeight;
-      sceneSvgEl.setAttribute(
-        "preserveAspectRatio",
-        containerRatio < viewBoxRatio ? "xMidYMid meet" : "xMidYMid slice"
-      );
-    };
-    updateSvgFit();
-    window.addEventListener("resize", updateSvgFit);
-    window.addEventListener("orientationchange", updateSvgFit);
-  }
+  // NOTA: se probó a cambiar preserveAspectRatio dinámicamente
+  // (slice/meet) para evitar el recorte del torii en vertical, pero eso
+  // rompía la composición de móvil de más abajo: todas sus cifras
+  // (xPercent/yPercent de cada capa) están calculadas a mano asumiendo
+  // SIEMPRE "slice" fijo. El SVG se deja tal cual viene en el HTML
+  // (slice) y en su lugar se soluciona por el otro lado: haciendo que
+  // cualquier pantalla con proporción vertical (no solo los móviles
+  // estrechos) reciba la composición de móvil -ver el cambio de mm.add
+  // más abajo-, que ya está pensada y calibrada para ese recorte.
 
   // gsap.matchMedia() separa por completo el comportamiento en escritorio
   // del de móvil: en escritorio se mantiene tal cual la composición y
@@ -401,7 +386,17 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
     );
   }
 
-  mm.add("(min-width: 769px)", () => {
+  // La condición ya no es solo "ancho": un iPad en vertical tiene 834px o
+  // más de ancho (entraría por la rama de escritorio por puro número de
+  // píxeles) pero su proporción es alta y estrecha, mucho más parecida a
+  // un móvil que a un monitor. Por eso aquí se añade también la
+  // proporción (aspect-ratio): solo se considera "escritorio" una
+  // pantalla ancha Y con una proporción razonablemente horizontal
+  // (min-aspect-ratio: 4/5, es decir anchura/altura >= 0.8). Cualquier
+  // pantalla más vertical que eso -aunque sea muy ancha en píxeles, como
+  // un iPad Pro en vertical- cae en la rama de móvil de más abajo, que es
+  // la que está calibrada para encuadres verticales.
+  mm.add("(min-width: 769px) and (min-aspect-ratio: 4/5)", () => {
   // profundidad de cada capa (0 = muy lejos, 1 = primer plano):
   // determina cuánto se desplaza respecto al scroll (parallax)
   const layers = [
@@ -721,7 +716,11 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
 
   });
 
-  mm.add("(max-width: 768px)", () => {
+  // Complementaria de la condición de arriba: entra aquí cualquier
+  // pantalla estrecha (max-width: 768px) O cualquier pantalla con
+  // proporción vertical (max-aspect-ratio: 4/5), aunque sea ancha en
+  // píxeles -como un iPad Pro en vertical-.
+  mm.add("(max-width: 768px), (max-aspect-ratio: 4/5)", () => {
     // composición móvil: propia y distinta de la de escritorio, pensada
     // para un encuadre vertical. Reutiliza los mismos recursos del SVG,
     // pero con su propia posición, escala y tiempos para cada capa.
