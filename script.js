@@ -310,14 +310,14 @@ const sceneSection = document.getElementById("scene-section");
 if (sceneSection && window.gsap && window.ScrollTrigger) {
   gsap.registerPlugin(ScrollTrigger);
 
-  // Safari en iOS/iPadOS mueve la barra de direcciones al hacer scroll,
-  // lo que cambia el alto real del viewport en tiempo real y confunde el
-  // cálculo del "pin" de ScrollTrigger (la sección fija puede quedarse
-  // atascada o con saltos). normalizeScroll delega el scroll a un único
-  // listener controlado por GSAP en vez del nativo del navegador,
-  // evitando ese conflicto. Recomendado oficialmente por GSAP para
-  // secciones pineadas en móvil/tablet.
-  ScrollTrigger.normalizeScroll(true);
+  // NOTA: se probó ScrollTrigger.normalizeScroll(true) para el problema
+  // de la barra de direcciones de Safari en iOS/iPadOS, pero en la
+  // práctica dejó el scroll completamente bloqueado en iPad -es un
+  // conflicto conocido entre normalizeScroll y elementos con
+  // "position: fixed" como la cabecera (.site-header) de esta página-.
+  // Se quita: el fallback 100dvh en .scene-section (ver style.css) ya
+  // cubre la causa real del desajuste de altura sin ese efecto
+  // secundario.
 
   // NOTA: se probó a cambiar preserveAspectRatio dinámicamente
   // (slice/meet) para evitar el recorte del torii en vertical, pero eso
