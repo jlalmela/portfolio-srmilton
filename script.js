@@ -392,11 +392,20 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
   // un móvil que a un monitor. Por eso aquí se añade también la
   // proporción (aspect-ratio): solo se considera "escritorio" una
   // pantalla ancha Y con una proporción razonablemente horizontal
-  // (min-aspect-ratio: 4/5, es decir anchura/altura >= 0.8). Cualquier
-  // pantalla más vertical que eso -aunque sea muy ancha en píxeles, como
-  // un iPad Pro en vertical- cae en la rama de móvil de más abajo, que es
-  // la que está calibrada para encuadres verticales.
-  mm.add("(min-width: 769px) and (min-aspect-ratio: 4/5)", () => {
+  // (min-aspect-ratio: 4/5, es decir anchura/altura >= 0.8).
+  //
+  // Pero el aspect-ratio solo no basta: un iPad EN HORIZONTAL sí es
+  // ancho y horizontal (ratio > 0.8), así que con solo esa condición
+  // seguía cayendo en la rama de escritorio -y ahí el scroll se quedaba
+  // bloqueado, porque esta composición nunca se ha probado con un dedo
+  // en pantalla, solo con ratón-. Por eso se añade también (hover: hover)
+  // y (pointer: fine): son ciertos solo en dispositivos con ratón/trackpad
+  // real. Cualquier pantalla táctil -tablet u móvil, en cualquier
+  // orientación- no los cumple y cae siempre en la rama de móvil de más
+  // abajo, que es la que ya se ha confirmado que funciona con el dedo.
+  mm.add(
+    "(min-width: 769px) and (min-aspect-ratio: 4/5) and (hover: hover) and (pointer: fine)",
+    () => {
   // profundidad de cada capa (0 = muy lejos, 1 = primer plano):
   // determina cuánto se desplaza respecto al scroll (parallax)
   const layers = [
@@ -717,10 +726,16 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
   });
 
   // Complementaria de la condición de arriba: entra aquí cualquier
-  // pantalla estrecha (max-width: 768px) O cualquier pantalla con
-  // proporción vertical (max-aspect-ratio: 4/5), aunque sea ancha en
-  // píxeles -como un iPad Pro en vertical-.
-  mm.add("(max-width: 768px), (max-aspect-ratio: 4/5)", () => {
+  // pantalla estrecha (max-width: 768px), cualquier pantalla con
+  // proporción vertical (max-aspect-ratio: 4/5) -aunque sea ancha en
+  // píxeles, como un iPad Pro en vertical-, o cualquier pantalla táctil
+  // sin ratón/trackpad real (hover: none) o con puntero "grueso"
+  // (pointer: coarse) -así un iPad en horizontal, que es ancho Y
+  // horizontal pero se maneja con el dedo, también cae aquí en vez de en
+  // la rama de escritorio-.
+  mm.add(
+    "(max-width: 768px), (max-aspect-ratio: 4/5), (hover: none), (pointer: coarse)",
+    () => {
     // composición móvil: propia y distinta de la de escritorio, pensada
     // para un encuadre vertical. Reutiliza los mismos recursos del SVG,
     // pero con su propia posición, escala y tiempos para cada capa.
