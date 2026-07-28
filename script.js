@@ -394,27 +394,23 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
   // pantalla ancha Y con una proporción razonablemente horizontal
   // (min-aspect-ratio: 4/5, es decir anchura/altura >= 0.8).
   //
-  // Pero el aspect-ratio solo no basta: un iPad EN HORIZONTAL sí es
-  // ancho y horizontal (ratio > 0.8), así que con solo esa condición
-  // seguía cayendo en la rama de escritorio -y ahí el scroll se quedaba
-  // bloqueado, porque esta composición nunca se ha probado con un dedo
-  // en pantalla, solo con ratón-.
+  // Se probó a mandar CUALQUIER pantalla táctil (any-pointer: coarse) a
+  // la composición de móvil, pensando que el problema era "esto no se ha
+  // probado con dedo". Pero esa composición de móvil no está pensada
+  // para cualquier pantalla táctil: está calibrada a mano (xPercent,
+  // yPercent de cada capa...) asumiendo una franja vertical y estrecha,
+  // el recorte que produce "slice" en un aspect-ratio bajo. Al forzar el
+  // iPad en horizontal -ancho, no estrecho- a usar esa composición, el
+  // recorte "slice" mostraba una franja distinta (mucho más ancha) y
+  // toda la composición quedaba desplazada, con un margen vacío a la
+  // izquierda que no debería estar ahí.
   //
-  // Se probó a añadir (hover: hover) y (pointer: fine) para detectar
-  // "esto tiene ratón/trackpad de verdad", pero los iPad Pro recientes
-  // (con soporte de "hover" para el Apple Pencil) devuelven esas dos
-  // condiciones como verdaderas de forma NATIVA aunque no haya ni ratón
-  // ni teclado conectado -es una peculiaridad conocida de iPadOS-, así
-  // que seguían cayendo en escritorio también en horizontal. La forma
-  // fiable de preguntar "¿hay una pantalla táctil disponible en este
-  // dispositivo?" es any-pointer (comprueba TODOS los punteros
-  // disponibles, no solo el "principal" que reporta el Pencil): un
-  // iPad, tenga o no teclado/trackpad, siempre tiene disponible un
-  // puntero táctil ("coarse"), mientras que un Mac/PC sin pantalla
-  // táctil nunca lo tiene.
-  mm.add(
-    "(min-width: 769px) and (min-aspect-ratio: 4/5) and (not (any-pointer: coarse))",
-    () => {
+  // La proporción (aspect-ratio) sigue siendo la señal correcta para
+  // decidir QUÉ COMPOSICIÓN usar (vertical-estrecha vs. horizontal-
+  // ancha), independientemente de si el dispositivo es táctil o no: un
+  // iPad en horizontal es ancho, así que debe usar la composición de
+  // escritorio -que está pensada para ese formato-, no la de móvil.
+  mm.add("(min-width: 769px) and (min-aspect-ratio: 4/5)", () => {
   // profundidad de cada capa (0 = muy lejos, 1 = primer plano):
   // determina cuánto se desplaza respecto al scroll (parallax)
   const layers = [
@@ -735,16 +731,11 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
   });
 
   // Complementaria de la condición de arriba: entra aquí cualquier
-  // pantalla estrecha (max-width: 768px), cualquier pantalla con
-  // proporción vertical (max-aspect-ratio: 4/5) -aunque sea ancha en
-  // píxeles, como un iPad Pro en vertical-, o cualquier dispositivo con
-  // una pantalla táctil disponible (any-pointer: coarse) -así un iPad en
-  // horizontal, que es ancho y horizontal pero se maneja con el dedo,
-  // también cae aquí en vez de en la rama de escritorio, sin depender de
-  // si además tiene o no soporte de "hover" para el Apple Pencil-.
-  mm.add(
-    "(max-width: 768px), (max-aspect-ratio: 4/5), (any-pointer: coarse)",
-    () => {
+  // pantalla estrecha (max-width: 768px) o cualquier pantalla con
+  // proporción vertical (max-aspect-ratio: 4/5), aunque sea ancha en
+  // píxeles -como un iPad Pro en vertical-. Solo la proporción decide;
+  // no se usa detección de táctil/ratón (ver nota más arriba).
+  mm.add("(max-width: 768px), (max-aspect-ratio: 4/5)", () => {
     // composición móvil: propia y distinta de la de escritorio, pensada
     // para un encuadre vertical. Reutiliza los mismos recursos del SVG,
     // pero con su propia posición, escala y tiempos para cada capa.
