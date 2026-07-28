@@ -596,6 +596,15 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
         end: "+=150%",
         scrub: 1,
         pin: true,
+        // En algunas configuraciones de Safari/iOS, GSAP puede recurrir a
+        // pinType "fixed" en vez de "transform": ese modo posiciona la
+        // sección con position:fixed + un "left" fijado en el momento de
+        // crearse, que puede quedar desajustado si la barra de
+        // direcciones cambia de tamaño o el viewport se reporta distinto
+        // justo al cargar -produciendo el margen lateral vacío que se ve
+        // en iPad-. Forzar "transform" evita ese modo y usa un
+        // desplazamiento relativo (translate), que no se queda obsoleto.
+        pinType: "transform",
       },
     });
 
@@ -982,6 +991,15 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
         end: "+=100%",
         scrub: 1,
         pin: true,
+        // En algunas configuraciones de Safari/iOS, GSAP puede recurrir a
+        // pinType "fixed" en vez de "transform": ese modo posiciona la
+        // sección con position:fixed + un "left" fijado en el momento de
+        // crearse, que puede quedar desajustado si la barra de
+        // direcciones cambia de tamaño o el viewport se reporta distinto
+        // justo al cargar -produciendo el margen lateral vacío que se ve
+        // en iPad-. Forzar "transform" evita ese modo y usa un
+        // desplazamiento relativo (translate), que no se queda obsoleto.
+        pinType: "transform",
       },
     });
 
@@ -1237,6 +1255,10 @@ if (scrollVideoSection && window.gsap && window.ScrollTrigger) {
     start: "top top",
     end: "+=150%",
     pin: true,
+    // Ver la nota sobre pinType en la escena principal (index.html): se
+    // fuerza "transform" para evitar el modo position:fixed de GSAP en
+    // iOS, que puede dejar un desplazamiento lateral obsoleto.
+    pinType: "transform",
     // scrub más alto = más "inercia": el progreso persigue al scroll
     // con un pequeño retardo suavizado, en vez de calcarlo al milímetro
     scrub: 1.2,
