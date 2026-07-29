@@ -400,25 +400,24 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
   // 2) se añadió aspect-ratio -> el iPad vertical pasó a móvil, pero el
   //    horizontal seguía aquí, y aquí el scroll no respondía al dedo.
   // 3) se probó a mandar cualquier pantalla táctil (any-pointer: coarse)
-  //    a móvil, y aunque el scroll sí funcionaba, apareció un margen
-  //    vacío a la izquierda en horizontal -que en su momento se achacó a
-  //    que la composición móvil estaba calibrada solo para vertical-.
-  // 4) revirtiendo a "solo aspect-ratio" (paso 2) el margen SEGUÍA
-  //    apareciendo iPad en horizontal usando la composición de
-  //    escritorio, lo que demostró que el margen no era culpa de la
-  //    composición: era pinType (position:fixed con left obsoleto en
+  //    a móvil: el scroll volvía a funcionar, pero apareció un margen
+  //    vacío a la izquierda en horizontal.
+  // 4) revirtiendo a "solo aspect-ratio" el margen SEGUÍA apareciendo con
+  //    la composición de escritorio, lo que demostró que no era culpa de
+  //    la composición: era pinType (position:fixed con left obsoleto en
   //    iOS). Se arregló forzando pinType:"transform" en todos los pines.
-  // Con eso corregido, la composición de escritorio SIGUE sin responder
-  // al scroll táctil en iPad horizontal (algo en su propio timeline -las
-  // curvas del sol/pájaros calculadas cuadro a cuadro- no funciona bien
-  // con touch en iOS), mientras que la de móvil sí funciona con el dedo
-  // en cualquier orientación. Así que, con el margen ya resuelto, se
-  // vuelve a mandar cualquier pantalla táctil (any-pointer: coarse) a la
-  // composición de móvil, sea cual sea su orientación -prioridad: que
-  // funcione el scroll sobre el encuadre exacto en horizontal-.
-  mm.add(
-    "(min-width: 769px) and (min-aspect-ratio: 4/5) and (not (any-pointer: coarse))",
-    () => {
+  // 5) con el margen ya resuelto, se volvió a probar any-pointer: coarse
+  //    para el scroll -pero esa condición TAMBIÉN atrapa portátiles con
+  //    pantalla táctil (habituales en Windows/ASUS) usados en panorámico
+  //    normal, mandándolos a la composición móvil -pensada solo para
+  //    proporciones estrechas- y rompiendo el diseño en un portátil
+  //    normal y corriente. any-pointer no es una señal fiable aquí.
+  // Se vuelve a decidir solo por aspect-ratio (válido tanto para
+  // portátiles anchos como para iPad vertical), confiando en que el
+  // pinType ya arreglado sea justo lo que hacía falta para el scroll
+  // táctil en iPad horizontal -combinación que, por el orden en que se
+  // fueron probando los cambios, nunca se llegó a probar aislada-.
+  mm.add("(min-width: 769px) and (min-aspect-ratio: 4/5)", () => {
   // profundidad de cada capa (0 = muy lejos, 1 = primer plano):
   // determina cuánto se desplaza respecto al scroll (parallax)
   const layers = [
@@ -748,14 +747,11 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
   });
 
   // Complementaria de la condición de arriba: entra aquí cualquier
-  // pantalla estrecha (max-width: 768px), cualquier pantalla con
+  // pantalla estrecha (max-width: 768px) o cualquier pantalla con
   // proporción vertical (max-aspect-ratio: 4/5) -como un iPad Pro en
-  // vertical-, o cualquier pantalla táctil (any-pointer: coarse) -como
-  // un iPad en horizontal-, ya que la composición de escritorio no
-  // responde bien al scroll con el dedo (ver historial más arriba).
-  mm.add(
-    "(max-width: 768px), (max-aspect-ratio: 4/5), (any-pointer: coarse)",
-    () => {
+  // vertical-. Ya no se usa any-pointer: atrapaba también portátiles con
+  // pantalla táctil en panorámico normal (ver historial más arriba).
+  mm.add("(max-width: 768px), (max-aspect-ratio: 4/5)", () => {
     // composición móvil: propia y distinta de la de escritorio, pensada
     // para un encuadre vertical. Reutiliza los mismos recursos del SVG,
     // pero con su propia posición, escala y tiempos para cada capa.
