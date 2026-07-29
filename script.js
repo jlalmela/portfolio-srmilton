@@ -760,6 +760,22 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
     // para un encuadre vertical. Reutiliza los mismos recursos del SVG,
     // pero con su propia posición, escala y tiempos para cada capa.
     // El suelo no se usa en esta composición y queda oculto.
+
+    // Todos los desplazamientos "*_OUTER" de aquí abajo se ajustaron a
+    // mano viendo un iPad en vertical (proporción ancho/alto ≈ 0.7). Con
+    // preserveAspectRatio="slice", cuanto más ancha es la proporción de
+    // la pantalla, más franja del dibujo original queda visible -y los
+    // desplazamientos que "meten" cada pieza dentro de esa franja tienen
+    // que crecer en la misma medida, o se quedan cortos: todo aparece
+    // apelotonado hacia la izquierda, con un hueco vacío a la derecha
+    // (justo lo que pasaba en el iPad en horizontal, proporción ≈ 1.4).
+    // MOBILE_WIDTH_SCALE mide cuánto más ancha es la proporción actual
+    // respecto a esa proporción de referencia, y se usa para agrandar
+    // proporcionalmente esos desplazamientos según la pantalla real.
+    const MOBILE_DESIGN_RATIO = 0.7;
+    const MOBILE_WIDTH_SCALE =
+      (sceneSection.clientWidth / sceneSection.clientHeight) / MOBILE_DESIGN_RATIO;
+
     const MOBILE_HIDDEN_SELECTORS = [".layer-suelo"];
     gsap.set(MOBILE_HIDDEN_SELECTORS, { opacity: 0 });
 
@@ -793,7 +809,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
     // tengan anchos de caja distintos- y ese % no cambia por aplicar
     // además una escala, porque el porcentaje siempre es relativo a la
     // caja original del elemento, no al tamaño ya escalado.
-    const MOBILE_SHIFT_OUTER = 507 + 50;
+    const MOBILE_SHIFT_OUTER = (507 + 50) * MOBILE_WIDTH_SCALE;
     const MOBILE_MONTANAS_X = (MOBILE_SHIFT_OUTER / 3125) * 100;
     const MOBILE_SCALE = 0.75; // 25% más pequeño
 
@@ -875,7 +891,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
     // la posición final ya ajustada aquí en móvil.
     const MOBILE_SOL_WIDTH_OUTER = 194;
     const MOBILE_SOL_HEIGHT_OUTER = 184;
-    const MOBILE_SOL_X = (-600 / MOBILE_SOL_WIDTH_OUTER) * 100;
+    const MOBILE_SOL_X = ((-600 * MOBILE_WIDTH_SCALE) / MOBILE_SOL_WIDTH_OUTER) * 100;
     const MOBILE_SOL_Y = (200 / MOBILE_SOL_HEIGHT_OUTER) * 100;
     const MOBILE_SOL_SCALE = 1;
     const MOBILE_SOL_START_X = MOBILE_SOL_X - 877;
@@ -897,7 +913,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
     // queda fuera de la franja visible en móvil-. Cada pieza tiene su
     // propio ancho (outer), de ahí sale el % de cada una.
     const MOBILE_TORII_DROP_Y = -650;
-    const MOBILE_TORII_SHIFT_OUTER = -600 - 500 + 100 + 150;
+    const MOBILE_TORII_SHIFT_OUTER = (-600 - 500 + 100 + 150) * MOBILE_WIDTH_SCALE;
     const MOBILE_TORII_DOWN_OUTER = 450;
     const MOBILE_TORII_SCALE = 0.7; // 30% más pequeño
     // el tejado necesitaba además otros 30 puntos de más hacia abajo
@@ -948,7 +964,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
     // ancho propio (outer) es 737, de ahí sale el % del desplazamiento.
     const MOBILE_NUBE_WIDTH_OUTER = 737;
     const MOBILE_NUBE_HEIGHT_OUTER = 240;
-    const MOBILE_NUBE_REST_X = (-500 / MOBILE_NUBE_WIDTH_OUTER) * 100;
+    const MOBILE_NUBE_REST_X = ((-500 * MOBILE_WIDTH_SCALE) / MOBILE_NUBE_WIDTH_OUTER) * 100;
     const MOBILE_NUBE_REST_Y = (100 / MOBILE_NUBE_HEIGHT_OUTER) * 100;
     const MOBILE_NUBE_ENTRANCE_X = 80; // desplazamiento extra de entrada (positivo = desde la derecha)
     const MOBILE_NUBE_SCALE = 0.75; // 25% más pequeña
@@ -972,7 +988,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
     // para que entren en esa franja. Como ramas y hojas tienen anchos
     // de caja distintos, ese mismo desplazamiento en píxeles se expresa
     // como un % distinto para cada una.
-    const MOBILE_SAKURA_X_SHIFT_OUTER = 600;
+    const MOBILE_SAKURA_X_SHIFT_OUTER = 600 * MOBILE_WIDTH_SCALE;
     const MOBILE_SAKURA_RAMAS_WIDTH_OUTER = 1033;
     const MOBILE_SAKURA_HOJAS_WIDTH_OUTER = 1116;
     const MOBILE_SAKURA_RAMAS_REST_X =
@@ -1153,7 +1169,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
       {
         selector: ".layer-pajaros-1",
         entranceX: -900,
-        restX: (100 / 112) * 100,
+        restX: ((100 * MOBILE_WIDTH_SCALE) / 112) * 100,
         delay: MOBILE_PAJAROS_START + 0,
         duration: 0.4,
         bobAmplitude: 45,
@@ -1162,7 +1178,7 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
       {
         selector: ".layer-pajaros-2",
         entranceX: 1100,
-        restX: ((150 - 200 - 150) / 101) * 100,
+        restX: (((150 - 200 - 150) * MOBILE_WIDTH_SCALE) / 101) * 100,
         delay: MOBILE_PAJAROS_START + 0.05,
         duration: 0.3,
         bobAmplitude: 60,
