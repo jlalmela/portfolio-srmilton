@@ -386,13 +386,24 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
     );
   }
 
-  // La condición ya no es solo "ancho": un iPad en vertical tiene 834px o
+  // La condición no es solo "ancho": un iPad en vertical tiene 834px o
   // más de ancho (entraría por la rama de escritorio por puro número de
   // píxeles) pero su proporción es alta y estrecha, mucho más parecida a
-  // un móvil que a un monitor. Por eso aquí se añade también la
-  // proporción (aspect-ratio): solo se considera "escritorio" una
-  // pantalla ancha Y con una proporción razonablemente horizontal
-  // (min-aspect-ratio: 4/5, es decir anchura/altura >= 0.8).
+  // un móvil que a un monitor. Por eso se añade también la proporción
+  // (aspect-ratio): solo se considera "escritorio" una pantalla ancha Y
+  // con una proporción razonablemente horizontal (min-aspect-ratio: 4/5,
+  // es decir anchura/altura >= 0.8).
+  //
+  // Pero ancho + proporción horizontal tampoco basta: un MÓVIL en
+  // horizontal (p.ej. 926x428) es ancho (>=769px) y panorámico
+  // (ratio>0.8), así que con solo esas dos condiciones también caería
+  // aquí -sin haberse probado nunca el scroll táctil en un teléfono tan
+  // pequeño-. Por eso se añade una tercera condición: min-height: 600px.
+  // Un teléfono en horizontal tiene poca altura (~375-430px) aunque sea
+  // "ancho"; un iPad, un portátil o un monitor, en cualquier
+  // orientación, siempre tienen bastante más. Así se separa "pantalla de
+  // verdad grande" (escritorio) de "pantalla pequeña de mano, aunque esté
+  // girada" (móvil), que es la distinción que de verdad importa aquí.
   //
   // Historial de este breakpoint (para no repetir vueltas ya dadas):
   // 1) primero solo por ancho -> el iPad (siempre >=769px) caía aquí en
@@ -412,12 +423,15 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
   //    normal, mandándolos a la composición móvil -pensada solo para
   //    proporciones estrechas- y rompiendo el diseño en un portátil
   //    normal y corriente. any-pointer no es una señal fiable aquí.
-  // Se vuelve a decidir solo por aspect-ratio (válido tanto para
-  // portátiles anchos como para iPad vertical), confiando en que el
-  // pinType ya arreglado sea justo lo que hacía falta para el scroll
-  // táctil en iPad horizontal -combinación que, por el orden en que se
-  // fueron probando los cambios, nunca se llegó a probar aislada-.
-  mm.add("(min-width: 769px) and (min-aspect-ratio: 4/5)", () => {
+  // Se decide por ancho + proporción + altura mínima (válido tanto para
+  // portátiles anchos como para iPad vertical, y ahora también excluye
+  // el móvil en horizontal), confiando en que el pinType ya arreglado
+  // sea justo lo que hacía falta para el scroll táctil en iPad
+  // horizontal -combinación que, por el orden en que se fueron probando
+  // los cambios, nunca se llegó a probar aislada-.
+  mm.add(
+    "(min-width: 769px) and (min-aspect-ratio: 4/5) and (min-height: 600px)",
+    () => {
   // profundidad de cada capa (0 = muy lejos, 1 = primer plano):
   // determina cuánto se desplaza respecto al scroll (parallax)
   const layers = [
@@ -747,11 +761,15 @@ if (sceneSection && window.gsap && window.ScrollTrigger) {
   });
 
   // Complementaria de la condición de arriba: entra aquí cualquier
-  // pantalla estrecha (max-width: 768px) o cualquier pantalla con
+  // pantalla estrecha (max-width: 768px), cualquier pantalla con
   // proporción vertical (max-aspect-ratio: 4/5) -como un iPad Pro en
-  // vertical-. Ya no se usa any-pointer: atrapaba también portátiles con
-  // pantalla táctil en panorámico normal (ver historial más arriba).
-  mm.add("(max-width: 768px), (max-aspect-ratio: 4/5)", () => {
+  // vertical-, o cualquier pantalla con poca altura (max-height: 599px)
+  // -como un móvil en horizontal-. Ya no se usa any-pointer: atrapaba
+  // también portátiles con pantalla táctil en panorámico normal (ver
+  // historial más arriba).
+  mm.add(
+    "(max-width: 768px), (max-aspect-ratio: 4/5), (max-height: 599px)",
+    () => {
     // composición móvil: propia y distinta de la de escritorio, pensada
     // para un encuadre vertical. Reutiliza los mismos recursos del SVG,
     // pero con su propia posición, escala y tiempos para cada capa.
